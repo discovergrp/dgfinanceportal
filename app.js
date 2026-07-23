@@ -115,7 +115,7 @@ document.querySelectorAll('nav button').forEach(b =>
 function go(view) {
   const host = $('#view');
   host.innerHTML = '<p class="sub">Loading…</p>';
-  ({ dashboard, bookings, operational, receivables, documents, aging, margin, ledger })[view](host);
+  ({ dashboard, bookings, operational, receivables, suppliers, documents, aging, margin, ledger })[view](host);
 }
 
 function head(title, sub) {
@@ -306,6 +306,126 @@ async function receivables(host) {
   fStatus.addEventListener('change', draw);
   fSearch.addEventListener('input', draw);
   draw();
+}
+
+/* ---------- suppliers ---------- */
+
+const VENDOR_CATS = {
+  airline: 'Airline',
+  hotel: 'Hotel',
+  transportation: 'Transportation',
+  admission: 'Admission / attractions',
+  guide: 'Tour guide',
+  tour: 'Tour operator',
+  restaurant: 'Restaurant',
+  landlord: 'Landlord',
+  utility: 'Utility',
+  payroll: 'Payroll',
+  other: 'Other'
+};
+
+async function suppliers(host) {
+  const [{ data: vend }, { data: pay }] = await Promise.all([
+    sb.from('vendors').select('*').order('name'),
+    sb.from('v_payables_aging').select('vendor_id, balance, status')
+  ]);
+  const rows = vend || [];
+
+  // outstanding balance per vendor, from live payables
+  const owed = {};
+  (pay || []).forEach(p => {
+    if (p.status !== 'paid') owed[p.vendor_id] = (owed[p.vendor_id] || 0) + Number(p.balance);
+  });
+
+  host.innerHTML = '';
+  host.append(...head('Suppliers',
+    'Everyone the booking department buys from — hotels, airlines, transport, restaurants and guides.'));
+
+  const counts = {};
+  rows.forEach(r => counts[r.category] = (counts[r.category] || 0) + 1);
+  host.append(el('div', { class: 'stats' },
+    stat('Suppliers', rows.length, rows.filter(r => r.active).length + ' active'),
+    stat('Hotels', counts.hotel || 0, 'from the booking masterlist'),
+    stat('Airlines', counts.airline || 0, 'incl. consolidators'),
+    stat('With contact details', rows.filter(r => (r.contact || '').includes('@')).length,
+      'email on file')));
+
+  const bar = el('div', { class: 'bar' });
+  const fCat = el('select', {}, el('option', { value: '' }, 'All categories'),
+    ...Object.entries(VENDOR_CATS)
+      .filter(([k]) => counts[k])
+      .map(([k, v]) => el('option', { value: k }, `${v} (${counts[k]})`)));
+  const fSearch = el('input', { type: 'search', placeholder: 'Search name, city, contact' });
+  bar.append(
+    el('div', { class: 'field' }, el('label', {}, 'Category'), fCat),
+    el('div', { class: 'field grow' }, el('label', {}, 'Search'), fSearch));
+  if (canWrite()) bar.append(el('button', { class: 'btn', onclick: () => vendorForm() }, 'Add supplier'));
+  host.append(bar);
+
+  const panel = el('div');
+  host.append(panel);
+
+  const draw = () => {
+    const q = fSearch.value.toLowerCase();
+    const list = rows.filter(r =>
+      (!fCat.value || r.category === fCat.value) &&
+      (!q || [r.name, r.contact, r.category].some(x => (x || '').toLowerCase().includes(q))));
+
+    panel.innerHTML = '';
+    panel.append(el('p', { class: 'sub' }, `${list.length} suppliers`));
+    panel.append(table(
+      ['Supplier', 'Category', 'Contact', 'Outstanding', 'Terms', ''],
+      list.map(r => [
+        r.name,
+        VENDOR_CATS[r.category] || r.category,
+        el('span', { style: 'color:var(--muted);font-size:13px' }, r.contact || '—'),
+        el('span', { class: 'num' }, owed[r.id] ? money(owed[r.id]) : '—'),
+        r.terms_days + ' days',
+        canWrite()
+          ? el('button', { class: 'btn btn-ghost', onclick: () => vendorForm(r) }, 'Edit')
+          : ''
+      ]),
+      'No suppliers match that filter.'));
+  };
+  fCat.addEventListener('change', draw);
+  fSearch.addEventListener('input', draw);
+  draw();
+}
+
+function vendorForm(existing) {
+  const name = el('input', { type: 'text', value: existing?.name || '' });
+  const cat = el('select', {}, ...Object.entries(VENDOR_CATS).map(([k, v]) =>
+    el('option', { value: k, ...(existing?.category === k ? { selected: 'selected' } : {}) }, v)));
+  const contact = el('textarea', {
+    rows: '3',
+    placeholder: 'Email, phone, contact person, city — anything useful'
+  });
+  contact.value = existing?.contact || '';
+  const terms = el('input', { type: 'number', min: '0', value: existing?.terms_days ?? 30 });
+  const active = el('select', {},
+    el('option', { value: 'true', ...(existing?.active !== false ? { selected: 'selected' } : {}) }, 'Active'),
+    el('option', { value: 'false', ...(existing?.active === false ? { selected: 'selected' } : {}) }, 'Inactive'));
+
+  const body = el('div', {},
+    field('Supplier name', name),
+    el('div', { class: 'grid2' }, field('Category', cat), field('Payment terms (days)', terms)),
+    field('Contact details', contact),
+    field('Status', active));
+
+  modal(existing ? 'Edit supplier' : 'Add a supplier', body, async () => {
+    if (!name.value.trim()) return 'Enter a supplier name.';
+    const payload = {
+      name: name.value.trim(),
+      category: cat.value,
+      contact: contact.value.trim() || null,
+      terms_days: Number(terms.value) || 30,
+      active: active.value === 'true'
+    };
+    const { error } = existing
+      ? await sb.from('vendors').update(payload).eq('id', existing.id)
+      : await sb.from('vendors').insert(payload);
+    return error ? 'Could not save: ' + error.message : null;
+  });
 }
 
 /* ---------- booking department documents ---------- */
@@ -623,8 +743,16 @@ function modal(title, body, onSave) {
     saveBtn.disabled = true;
     const err = await onSave();
     saveBtn.disabled = false;
-    if (err) notify(msg, err, false);
-    else { close(); go(document.querySelector('nav button.on').dataset.view); }
+    if (err) { notify(msg, err, false); return; }
+    close();
+    // Reference data may have changed — refresh so dropdowns stay current.
+    const [v, c, t] = await Promise.all([
+      sb.from('vendors').select('id,name,category').eq('active', true).order('name'),
+      sb.from('clients').select('id,name').eq('active', true).order('name'),
+      sb.from('tours').select('id,code,title').order('start_date', { ascending: false })
+    ]);
+    cache = { vendors: v.data || [], clients: c.data || [], tours: t.data || [] };
+    go(document.querySelector('nav button.on').dataset.view);
   });
   host.innerHTML = '';
   host.append(el('div', { class: 'veil', onclick: e => e.target.classList.contains('veil') && close() },
