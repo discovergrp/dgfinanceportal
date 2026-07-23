@@ -15,6 +15,7 @@ const OPS_CATS = {
   office_rental: 'Office rental',
   utilities: 'Utilities',
   salary: 'Employee salary',
+  office: 'Office expenses',
   other: 'Other operating'
 };
 const ALL_CATS = { ...BOOKING_CATS, ...OPS_CATS };
@@ -115,64 +116,200 @@ document.querySelectorAll('nav button').forEach(b =>
 function go(view) {
   const host = $('#view');
   host.innerHTML = '<p class="sub">Loading…</p>';
-  ({ dashboard, bookings, operational, receivables, suppliers, documents, aging, margin, ledger })[view](host);
+  const VIEWS = {
+    dashboard,
+    // Booking department
+    bk_tour: h => bookingsByKind(h, 'tour', 'Tour Bookings',
+      'Land packages and full tour arrangements.'),
+    bk_air: h => bookingsByKind(h, 'airline', 'Airline Bookings',
+      'Group fares and individual ticketing.'),
+    bk_hotel: h => bookingsByKind(h, 'hotel', 'Hotel Bookings',
+      'Accommodation across every route.'),
+    bk_land: h => bookingsByKind(h, 'transportation', 'Land Arrangements',
+      'Coaches, transfers and ground transport.'),
+    bk_optional: h => bookingsByKind(h, 'admission', 'Optional Tours',
+      'Excursions, admissions and add-on experiences.'),
+    suppliers, bk_overview: bookingsOverview, documents,
+    // Payables
+    pay_invoices: h => payablesView(h, 'booking', 'Supplier Invoices',
+      'Bills from suppliers against tour bookings.', BOOKING_CATS),
+    pay_po: purchaseOrders,
+    pay_schedule: paymentSchedule,
+    pay_made: h => paymentsList(h, 'out', 'Payments Made',
+      'Everything paid out to suppliers.'),
+    // Operations
+    op_all: h => opsView(h, null, 'Operational Expenses',
+      'Day-to-day running costs of the company.'),
+    op_utilities: h => opsView(h, 'utilities', 'Utilities',
+      'Electricity, water, internet and telecoms.'),
+    op_rentals: h => opsView(h, 'office_rental', 'Rentals',
+      'Office and property rental.'),
+    op_salaries: h => opsView(h, 'salary', 'Salaries & Wages',
+      'Payroll and contractor fees.'),
+    op_office: h => opsView(h, 'office', 'Office Expenses',
+      'Supplies, equipment and office running costs.'),
+    op_other: h => opsView(h, 'other', 'Other Expenses',
+      'Anything outside the standard categories.'),
+    // Receivables
+    ar_client: h => receivablesView(h, 'client', 'Client Invoices',
+      'Money billed to agencies, corporates and direct clients.'),
+    ar_visa: h => receivablesView(h, 'visa', 'Visa Service Invoices',
+      'Visa processing fees and appointment fees.'),
+    ar_received: h => paymentsList(h, 'in', 'Payments Received',
+      'Everything collected from clients.'),
+    ar_overview: collectionsOverview,
+    // Reports
+    aging, margin, ledger, custom: customReports
+  };
+  (VIEWS[view] || dashboard)(host);
 }
 
 function head(title, sub) {
   return [el('h1', {}, title), el('p', { class: 'sub' }, sub)];
 }
 
-/* ---------- dashboard ---------- */
+/* ---------- dashboard (department hub) ---------- */
+
+const DEPTS = [
+  {
+    key: 'booking', title: 'Booking Department', tint: '#e6eefa', fg: '#1565d8', icon: '▣',
+    sub: 'Manage all bookings and services for tour packages.',
+    more: 'View all bookings', moreView: 'bk_overview',
+    links: [
+      ['bk_tour', '▣', 'Tour Bookings'], ['bk_land', '▬', 'Land Arrangements'],
+      ['bk_air', '✈', 'Airline Bookings'], ['bk_optional', '◎', 'Optional Tours'],
+      ['bk_hotel', '▤', 'Hotel Bookings'], ['suppliers', '◈', 'Booking Suppliers']
+    ]
+  },
+  {
+    key: 'payables', title: 'Payables (Trade)', tint: '#e3f3ec', fg: '#0f8a5f', icon: '▤',
+    sub: 'Manage all payables to suppliers for bookings.',
+    more: 'View all payables', moreView: 'pay_invoices',
+    links: [
+      ['pay_invoices', '▤', 'Supplier Invoices'], ['pay_schedule', '▦', 'Payment Schedule'],
+      ['pay_po', '▣', 'Purchase Orders'], ['pay_made', '✓', 'Payments Made']
+    ]
+  },
+  {
+    key: 'ops', title: 'Finance (Operations)', tint: '#fdeae6', fg: '#c0442a', icon: '▥',
+    sub: 'Manage day-to-day operational expenses of the company.',
+    more: 'View all expenses', moreView: 'op_all',
+    links: [
+      ['op_all', '▤', 'Operational Expenses'], ['op_salaries', '◔', 'Salaries & Wages'],
+      ['op_utilities', '⚡', 'Utilities'], ['op_office', '▢', 'Office Expenses'],
+      ['op_rentals', '⌂', 'Rentals'], ['op_other', '⋯', 'Other Expenses']
+    ]
+  },
+  {
+    key: 'receivables', title: 'Receivables', tint: '#ece7fb', fg: '#5b3fd4', icon: '◉',
+    sub: 'Manage invoices and collections.',
+    more: 'View all receivables', moreView: 'ar_overview',
+    note: 'Visa Service Invoices include all visa processing fees and appointment fees.',
+    links: [
+      ['ar_client', '▤', 'Client Invoices'], ['ar_received', '◉', 'Payments Received'],
+      ['ar_visa', '▣', 'Visa Service Invoices'], ['ar_overview', '▥', 'Collections Overview']
+    ]
+  },
+  {
+    key: 'reports', title: 'Reports', tint: '#fdf0e0', fg: '#c47a12', icon: '◕',
+    sub: 'View financial reports and insights.',
+    more: 'View all reports', moreView: 'aging',
+    links: [
+      ['aging', '◕', 'Aging Report'], ['ledger', '▤', 'Payment Ledger'],
+      ['margin', '◢', 'Tour Margin'], ['custom', '▦', 'Custom Reports']
+    ]
+  }
+];
+
+function nav(view) {
+  const btn = document.querySelector(`nav button[data-view="${view}"]`);
+  if (btn) btn.click();
+}
+
 async function dashboard(host) {
-  const [pay, rec] = await Promise.all([
-    sb.from('v_payables_aging').select('*'),
-    sb.from('v_receivables_aging').select('*')
-  ]);
-  const P = pay.data || [], R = rec.data || [];
-
-  const owed = P.filter(r => r.status !== 'paid').reduce((s, r) => s + Number(r.balance), 0);
-  const due = R.filter(r => r.status !== 'settled').reduce((s, r) => s + Number(r.balance), 0);
-  const latePay = P.filter(overdue);
-  const lateRec = R.filter(overdue);
-
-  const bookingSpend = P.filter(r => r.kind === 'booking').reduce((s, r) => s + Number(r.amount), 0);
-  const opsSpend = P.filter(r => r.kind === 'operational').reduce((s, r) => s + Number(r.amount), 0);
-
   host.innerHTML = '';
-  host.append(...head('Dashboard', 'Cash position across payables and receivables.'));
+  const who = (me?.full_name || '').trim().split(' ')[0]
+    || (me?.role ? me.role[0].toUpperCase() + me.role.slice(1) : 'there');
+  host.append(el('h1', { class: 'welcome' }, `Welcome back, ${who}`),
+    el('p', { class: 'sub' }, "Here's what's happening with your finances today."));
 
-  host.append(el('div', { class: 'stats' },
-    stat('Owed to vendors', money(owed), P.filter(r => r.status !== 'paid').length + ' open bills', 'alert'),
-    stat('Due from clients', money(due), R.filter(r => r.status !== 'settled').length + ' open invoices', 'good'),
-    stat('Net position', money(due - owed), 'receivables less payables'),
-    stat('Overdue bills', latePay.length, money(latePay.reduce((s, r) => s + Number(r.balance), 0)) + ' past due', latePay.length ? 'alert' : '')
-  ));
+  const hub = el('div', { class: 'hub' });
+  host.append(hub);
 
-  host.append(el('h2', {}, 'Spend by category'));
-  const total = bookingSpend + opsSpend || 1;
-  const byCat = {};
-  P.forEach(r => byCat[r.category] = (byCat[r.category] || 0) + Number(r.amount));
-  host.append(el('div', { class: 'split' },
-    ...Object.entries(ALL_CATS).map(([k, label]) => {
-      const v = byCat[k] || 0;
-      return el('div', { class: 'cat' + (OPS_CATS[k] ? ' ops' : '') },
-        el('div', { class: 'k' }, label),
-        el('div', { class: 'v' }, money(v)),
-        el('div', { class: 'track' },
-          el('div', { class: 'fill', style: `width:${Math.min(100, v / total * 100)}%` })));
-    })
-  ));
+  // Render the shell straight away, then fill in counts as they arrive.
+  const cardOf = d => {
+    const links = el('div', { class: 'hlinks' });
+    d.links.forEach(([view, ico, label]) => {
+      const count = el('span', { class: 'cnt' });
+      links.append(el('button', { class: 'hlink', onclick: () => nav(view) },
+        el('span', { class: 'hi' }, ico), label, count,
+        el('span', { class: 'chev' }, '›')));
+      d._counts = d._counts || {};
+      d._counts[view] = count;
+    });
+    const card = el('div', { class: 'hcard' },
+      el('div', { class: 'hhead' },
+        el('div', { class: 'hicon', style: `background:${d.tint};color:${d.fg}` }, d.icon),
+        el('div', {},
+          el('h3', { style: `color:${d.fg}` }, d.title),
+          el('p', { class: 'hsub' }, d.sub))),
+      links,
+      el('button', { class: 'hmore', style: `color:${d.fg}`, onclick: () => nav(d.moreView) },
+        d.more, '›'));
+    if (d.note) card.append(el('div', { class: 'hnote' }, el('span', {}, 'ⓘ'), d.note));
+    return card;
+  };
+  DEPTS.forEach(d => hub.append(cardOf(d)));
 
-  host.append(el('h2', {}, 'Needs attention'));
-  const flagged = [...latePay.map(r => ({ ...r, _t: 'Payable', _who: r.vendor_name })),
-                   ...lateRec.map(r => ({ ...r, _t: 'Receivable', _who: r.client_name }))]
-                   .sort((a, b) => new Date(a.due_date) - new Date(b.due_date)).slice(0, 12);
-  host.append(table(
-    ['Type', 'Party', 'Reference', 'Due', 'Balance'],
-    flagged.map(r => [r._t, r._who, r.invoice_no || '—', dt(r.due_date),
-      el('span', { class: 'num' }, money(r.balance))]),
-    'Nothing overdue. Everything is current.'
-  ));
+  // Live counts
+  const [bk, pay, rec, po, pmt] = await Promise.all([
+    sb.from('bookings').select('vendor_id,status,service_date'),
+    sb.from('v_payables_aging').select('kind,category,status,balance'),
+    sb.from('v_receivables_aging').select('invoice_type,status,balance'),
+    sb.from('purchase_orders').select('status'),
+    sb.from('payments').select('direction')
+  ]);
+  const B = bk.data || [], P = pay.data || [], R = rec.data || [];
+  const live = b => ['enquiry', 'quoted', 'confirmed'].includes(b.status);
+  const vend = cache.vendors.reduce((m, v) => (m[v.id] = v.category, m), {});
+  const set = (view, txt) => {
+    DEPTS.forEach(d => { if (d._counts?.[view] && txt) d._counts[view].textContent = txt; });
+  };
+
+  const byCat = c => B.filter(b => live(b) && vend[b.vendor_id] === c).length;
+  set('bk_tour', byCat('tour') || '');
+  set('bk_air', byCat('airline') || '');
+  set('bk_hotel', byCat('hotel') || '');
+  set('bk_land', byCat('transportation') || '');
+  set('bk_optional', byCat('admission') || '');
+  set('suppliers', cache.vendors.length);
+
+  const openPay = P.filter(r => r.kind === 'booking' && r.status !== 'paid');
+  set('pay_invoices', openPay.length ? money(openPay.reduce((s, r) => s + Number(r.balance), 0)) : '');
+  set('pay_po', (po.data || []).filter(x => x.status === 'open').length || '');
+  const dueSoon = openPay.length;
+  set('pay_schedule', dueSoon || '');
+  set('pay_made', (pmt.data || []).filter(x => x.direction === 'out').length || '');
+
+  const ops = P.filter(r => r.kind === 'operational' && r.status !== 'paid');
+  const opSum = c => {
+    const t = ops.filter(r => r.category === c).reduce((s, r) => s + Number(r.balance), 0);
+    return t ? money(t) : '';
+  };
+  set('op_all', ops.length ? money(ops.reduce((s, r) => s + Number(r.balance), 0)) : '');
+  set('op_utilities', opSum('utilities'));
+  set('op_rentals', opSum('office_rental'));
+  set('op_salaries', opSum('salary'));
+  set('op_office', opSum('office'));
+  set('op_other', opSum('other'));
+
+  const openRec = t => R.filter(r => r.status !== 'settled'
+    && (r.invoice_type || 'client') === t);
+  const cSum = openRec('client').reduce((s, r) => s + Number(r.balance), 0);
+  const vSum = openRec('visa').reduce((s, r) => s + Number(r.balance), 0);
+  set('ar_client', cSum ? money(cSum) : '');
+  set('ar_visa', vSum ? money(vSum) : '');
+  set('ar_received', (pmt.data || []).filter(x => x.direction === 'in').length || '');
 }
 
 function stat(k, v, n, cls = '') {
@@ -253,18 +390,14 @@ async function payablesView(host, kind, title, sub, cats) {
   draw();
 }
 
-const bookings = h => payablesView(h, 'booking', 'Tour bookings',
-  'Supplier costs tied to a tour — flights, hotels, transport, admissions, guides, restaurants.', BOOKING_CATS);
-const operational = h => payablesView(h, 'operational', 'Operational expense',
-  'Running costs of the business — rent, utilities, payroll and general overhead.', OPS_CATS);
 
 /* ---------- receivables ---------- */
-async function receivables(host) {
+async function receivablesView(host, type, title, sub) {
   const { data } = await sb.from('v_receivables_aging').select('*').order('due_date');
-  const rows = data || [];
+  const rows = (data || []).filter(r => !type || (r.invoice_type || 'client') === type);
 
   host.innerHTML = '';
-  host.append(...head('Client invoices', 'Money billed to agencies, corporates and direct clients.'));
+  host.append(...head(title, sub));
 
   const bar = el('div', { class: 'bar' });
   const fStatus = el('select', {}, ...['All statuses', 'open', 'partial', 'settled']
@@ -273,7 +406,7 @@ async function receivables(host) {
   bar.append(
     el('div', { class: 'field' }, el('label', {}, 'Status'), fStatus),
     el('div', { class: 'field grow' }, el('label', {}, 'Search'), fSearch));
-  if (canWrite()) bar.append(el('button', { class: 'btn', onclick: invoiceForm }, 'Raise an invoice'));
+  if (canWrite()) bar.append(el('button', { class: 'btn', onclick: () => invoiceForm(type) }, 'Raise an invoice'));
   host.append(bar);
 
   const panel = el('div');
@@ -324,40 +457,71 @@ const VENDOR_CATS = {
   other: 'Other'
 };
 
+const BOOKING_STATUS = ['enquiry', 'quoted', 'confirmed', 'delivered', 'cancelled'];
+
 async function suppliers(host) {
-  const [{ data: vend }, { data: pay }] = await Promise.all([
-    sb.from('vendors').select('*').order('name'),
-    sb.from('v_payables_aging').select('vendor_id, balance, status')
+  const [{ data: vend, error }, { data: bks }] = await Promise.all([
+    sb.from('v_vendor_summary').select('*').order('name'),
+    sb.from('bookings').select('*').order('service_date')
   ]);
   const rows = vend || [];
-
-  // outstanding balance per vendor, from live payables
-  const owed = {};
-  (pay || []).forEach(p => {
-    if (p.status !== 'paid') owed[p.vendor_id] = (owed[p.vendor_id] || 0) + Number(p.balance);
-  });
+  const bookings = bks || [];
 
   host.innerHTML = '';
   host.append(...head('Suppliers',
     'Everyone the booking department buys from — hotels, airlines, transport, restaurants and guides.'));
 
-  const counts = {};
-  rows.forEach(r => counts[r.category] = (counts[r.category] || 0) + 1);
+  if (error) {
+    host.append(el('div', { class: 'msg msg-err' }, 'Could not load suppliers: ' + error.message));
+    return;
+  }
+
+  const counts = {}, countries = {};
+  rows.forEach(r => {
+    counts[r.category] = (counts[r.category] || 0) + 1;
+    if (r.country) countries[r.country] = (countries[r.country] || 0) + 1;
+  });
+  const liveBookings = rows.reduce((s, r) => s + Number(r.upcoming_bookings || 0), 0);
+
   host.append(el('div', { class: 'stats' },
-    stat('Suppliers', rows.length, rows.filter(r => r.active).length + ' active'),
+    stat('Suppliers', rows.length, Object.keys(countries).length + ' countries'),
     stat('Hotels', counts.hotel || 0, 'from the booking masterlist'),
-    stat('Airlines', counts.airline || 0, 'incl. consolidators'),
-    stat('With contact details', rows.filter(r => (r.contact || '').includes('@')).length,
-      'email on file')));
+    stat('Live bookings', liveBookings, 'enquiries, quotes and confirmed',
+      liveBookings ? 'good' : ''),
+    stat('Contracted rates', rows.reduce((s, r) => s + Number(r.rate_count || 0), 0),
+      rows.filter(r => r.email).length + ' suppliers with email')));
 
   const bar = el('div', { class: 'bar' });
   const fCat = el('select', {}, el('option', { value: '' }, 'All categories'),
-    ...Object.entries(VENDOR_CATS)
-      .filter(([k]) => counts[k])
+    ...Object.entries(VENDOR_CATS).filter(([k]) => counts[k])
       .map(([k, v]) => el('option', { value: k }, `${v} (${counts[k]})`)));
-  const fSearch = el('input', { type: 'search', placeholder: 'Search name, city, contact' });
+  const fCountry = el('select', {}, el('option', { value: '' }, 'All countries'),
+    ...Object.entries(countries).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([k, n]) => el('option', { value: k }, `${k} (${n})`)));
+  const fCity = el('select', {}, el('option', { value: '' }, 'All cities'));
+  const fLive = el('select', {},
+    el('option', { value: '' }, 'All suppliers'),
+    el('option', { value: 'live' }, 'With live bookings'),
+    el('option', { value: 'owed' }, 'With money owed'));
+  const fSearch = el('input', { type: 'search', placeholder: 'Search name, contact, reference' });
+
+  // City list follows whichever country is selected.
+  const refreshCities = () => {
+    const pool = rows.filter(r => !fCountry.value || r.country === fCountry.value);
+    const cities = {};
+    pool.forEach(r => { if (r.city) cities[r.city] = (cities[r.city] || 0) + 1; });
+    fCity.innerHTML = '';
+    fCity.append(el('option', { value: '' }, 'All cities'),
+      ...Object.entries(cities).sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([k, n]) => el('option', { value: k }, `${k} (${n})`)));
+  };
+  refreshCities();
+
   bar.append(
+    el('div', { class: 'field' }, el('label', {}, 'Country'), fCountry),
+    el('div', { class: 'field' }, el('label', {}, 'City'), fCity),
     el('div', { class: 'field' }, el('label', {}, 'Category'), fCat),
+    el('div', { class: 'field' }, el('label', {}, 'Show'), fLive),
     el('div', { class: 'field grow' }, el('label', {}, 'Search'), fSearch));
   if (canWrite()) bar.append(el('button', { class: 'btn', onclick: () => vendorForm() }, 'Add supplier'));
   host.append(bar);
@@ -368,40 +532,342 @@ async function suppliers(host) {
   const draw = () => {
     const q = fSearch.value.toLowerCase();
     const list = rows.filter(r =>
+      (!fCountry.value || r.country === fCountry.value) &&
+      (!fCity.value || r.city === fCity.value) &&
       (!fCat.value || r.category === fCat.value) &&
-      (!q || [r.name, r.contact, r.category].some(x => (x || '').toLowerCase().includes(q))));
+      (fLive.value !== 'live' || Number(r.upcoming_bookings) > 0) &&
+      (fLive.value !== 'owed' || Number(r.outstanding) > 0) &&
+      (!q || [r.name, r.email, r.phone, r.contact_person, r.city, r.notes]
+        .some(x => (x || '').toLowerCase().includes(q))));
 
     panel.innerHTML = '';
-    panel.append(el('p', { class: 'sub' }, `${list.length} suppliers`));
+    panel.append(el('p', { class: 'sub' },
+      `${list.length} suppliers · ${list.reduce((s, r) => s + Number(r.upcoming_bookings || 0), 0)} live bookings`));
+
     panel.append(table(
-      ['Supplier', 'Category', 'Contact', 'Outstanding', 'Terms', ''],
-      list.map(r => [
-        r.name,
-        VENDOR_CATS[r.category] || r.category,
-        el('span', { style: 'color:var(--muted);font-size:13px' }, r.contact || '—'),
-        el('span', { class: 'num' }, owed[r.id] ? money(owed[r.id]) : '—'),
-        r.terms_days + ' days',
-        canWrite()
-          ? el('button', { class: 'btn btn-ghost', onclick: () => vendorForm(r) }, 'Edit')
-          : ''
-      ]),
-      'No suppliers match that filter.'));
+      ['Supplier', 'Location', 'Category', 'Email', 'Phone', 'Contact', 'Rates', 'Bookings', 'Outstanding', ''],
+      list.map(r => {
+        const mine = bookings.filter(b => b.vendor_id === r.id
+          && ['enquiry', 'quoted', 'confirmed'].includes(b.status));
+        return [
+          r.name,
+          el('span', {}, r.city || '—',
+            r.country ? el('div', { style: 'color:var(--muted);font-size:12px' }, r.country) : ''),
+          VENDOR_CATS[r.category] || r.category,
+          r.email
+            ? el('a', { href: 'mailto:' + r.email, style: 'font-size:13px' }, r.email)
+            : el('span', { style: 'color:var(--muted)' }, '—'),
+          el('span', { style: 'font-size:13px' }, r.phone || '—'),
+          el('span', { style: 'font-size:13px' }, r.contact_person || '—'),
+          Number(r.rate_count)
+            ? el('button', {
+                class: 'btn btn-ghost', style: 'padding:4px 10px;font-size:13px',
+                onclick: () => supplierDetail(r)
+              }, `${r.rate_count} rate${r.rate_count > 1 ? 's' : ''}`)
+            : el('span', { style: 'color:var(--muted)' }, '—'),
+          mine.length
+            ? el('button', {
+                class: 'btn btn-ghost',
+                style: 'padding:4px 10px;font-size:13px',
+                onclick: () => showBookings(r, mine)
+              }, `${mine.length} live`)
+            : el('span', { style: 'color:var(--muted)' }, '—'),
+          el('span', { class: 'num' },
+            Number(r.outstanding) ? money(r.outstanding) : '—'),
+          el('button', { class: 'btn btn-ghost', onclick: () => supplierDetail(r) }, 'Open')
+        ];
+      }),
+      'No suppliers match those filters.'));
   };
-  fCat.addEventListener('change', draw);
+
+  fCountry.addEventListener('change', () => { refreshCities(); draw(); });
+  [fCity, fCat, fLive].forEach(x => x.addEventListener('change', draw));
   fSearch.addEventListener('input', draw);
   draw();
 }
 
+function showBookings(vendor, list) {
+  const body = el('div', {},
+    el('p', { class: 'sub' }, `${vendor.name}${vendor.city ? ' · ' + vendor.city : ''}`),
+    table(['Reference', 'Service', 'Date', 'Pax', 'Status'],
+      list.map(b => [
+        b.reference || '—',
+        b.description || '—',
+        dt(b.service_date),
+        b.pax ?? '—',
+        el('span', { class: 'tag t-' + (b.status === 'confirmed' ? 'paid' : 'partial') }, b.status)
+      ]), 'No live bookings.'),
+    ...list.filter(b => b.notes).map(b =>
+      el('p', { class: 'sub', style: 'margin-top:12px' },
+        el('strong', {}, (b.reference || 'Note') + ': '), b.notes)));
+
+  const host = $('#modalHost');
+  const close = () => host.innerHTML = '';
+  host.innerHTML = '';
+  host.append(el('div', { class: 'veil', onclick: e => e.target.classList.contains('veil') && close() },
+    el('div', { class: 'modal' }, el('h3', {}, 'Live bookings'), body,
+      el('div', { class: 'modal-foot' },
+        el('button', { class: 'btn', onclick: close }, 'Close')))));
+}
+
+function bookingForm(vendor) {
+  const ref = el('input', { type: 'text', placeholder: 'e.g. GEASYO7, SEP11-LON' });
+  const desc = el('input', { type: 'text', placeholder: 'What is being booked' });
+  const date = el('input', { type: 'date' });
+  const pax = el('input', { type: 'number', min: '0' });
+  const status = el('select', {}, ...BOOKING_STATUS.map(s =>
+    el('option', { value: s }, s[0].toUpperCase() + s.slice(1))));
+  const amount = el('input', { type: 'number', step: '0.01', min: '0' });
+  const cur = el('select', {}, ...['EUR', 'PHP', 'GBP', 'USD', 'CHF', 'NOK', 'SEK', 'DKK']
+    .map(c => el('option', { value: c }, c)));
+  const tour = el('select', {}, el('option', { value: '' }, 'Not tied to a tour'),
+    ...cache.tours.map(t => el('option', { value: t.id }, `${t.code} — ${t.title}`)));
+  const notes = el('textarea', { rows: '2', placeholder: 'Capacity limits, deadlines, anything worth remembering' });
+
+  const body = el('div', {},
+    el('p', { class: 'sub' }, vendor.name),
+    el('div', { class: 'grid2' }, field('Reference', ref), field('Status', status)),
+    field('Description', desc),
+    el('div', { class: 'grid2' }, field('Service date', date), field('Pax', pax)),
+    el('div', { class: 'grid2' }, field('Amount (optional)', amount), field('Currency', cur)),
+    field('Tour', tour),
+    field('Notes', notes));
+
+  modal('Add a booking', body, async () => {
+    if (!desc.value.trim() && !ref.value.trim()) return 'Enter a reference or description.';
+    const { error } = await sb.from('bookings').insert({
+      vendor_id: vendor.id,
+      reference: ref.value.trim() || null,
+      description: desc.value.trim() || null,
+      service_date: date.value || null,
+      pax: pax.value ? Number(pax.value) : null,
+      status: status.value,
+      amount: amount.value ? Number(amount.value) : null,
+      currency: cur.value,
+      tour_id: tour.value || null,
+      notes: notes.value.trim() || null
+    });
+    return error ? 'Could not save this booking: ' + error.message : null;
+  });
+}
+
 function vendorForm(existing) {
+  if (existing) return supplierDetail(existing);
+  return vendorEditForm(null);
+}
+
+/* Full-screen supplier record: details, contracted rates, bookings. */
+async function supplierDetail(vendor) {
+  const host = $('#modalHost');
+  const close = () => host.innerHTML = '';
+
+  const [{ data: rates }, { data: bks }] = await Promise.all([
+    sb.from('rate_contracts').select('*').eq('vendor_id', vendor.id)
+      .order('valid_to', { ascending: false, nullsFirst: false }),
+    sb.from('bookings').select('*').eq('vendor_id', vendor.id).order('service_date')
+  ]);
+
+  const panes = {};
+  const body = el('div', {});
+  const tabs = el('div', { class: 'tabs' });
+  const paneHost = el('div');
+
+  const show = key => {
+    Object.entries(panes).forEach(([k, p]) => p.style.display = k === key ? '' : 'none');
+    [...tabs.children].forEach(b => b.classList.toggle('on', b.dataset.k === key));
+  };
+  const addTab = (key, label, node) => {
+    panes[key] = node;
+    node.style.display = 'none';
+    paneHost.append(node);
+    tabs.append(el('button', { class: 'tab', 'data-k': key, onclick: () => show(key) }, label));
+  };
+
+  /* ---- details ---- */
+  const detail = el('div', {});
+  const rowsOf = [
+    ['Category', VENDOR_CATS[vendor.category] || vendor.category],
+    ['Location', [vendor.city, vendor.country].filter(Boolean).join(', ') || '—'],
+    ['Email', vendor.email || '—'],
+    ['Phone', vendor.phone || '—'],
+    ['Contact person', vendor.contact_person || '—'],
+    ['Payment terms', vendor.terms_days + ' days'],
+    ['Status', vendor.active === false ? 'Inactive' : 'Active']
+  ];
+  const dl = el('div', { class: 'kv' });
+  rowsOf.forEach(([k, v]) => dl.append(
+    el('div', { class: 'kv-k' }, k),
+    el('div', { class: 'kv-v' }, k === 'Email' && vendor.email
+      ? el('a', { href: 'mailto:' + vendor.email }, vendor.email) : v)));
+  detail.append(dl);
+  if (vendor.notes) detail.append(el('p', { class: 'sub', style: 'margin-top:14px' }, vendor.notes));
+  if (canWrite()) detail.append(el('button', {
+    class: 'btn', style: 'margin-top:18px',
+    onclick: () => { close(); vendorEditForm(vendor); }
+  }, 'Edit details'));
+  addTab('detail', 'Details', detail);
+
+  /* ---- contracted rates ---- */
+  const ratePane = el('div', {});
+  const drawRates = () => {
+    ratePane.innerHTML = '';
+    if (canWrite()) ratePane.append(el('button', {
+      class: 'btn', style: 'margin-bottom:14px',
+      onclick: () => { close(); rateForm(vendor); }
+    }, 'Add contracted rate'));
+    ratePane.append(table(
+      ['Title', 'Type', 'Valid', 'Rate detail', 'File / link', ''],
+      (rates || []).map(r => {
+        const expired = r.valid_to && new Date(r.valid_to) < new Date().setHours(0, 0, 0, 0);
+        return [
+          el('span', {}, r.title,
+            expired ? el('div', { class: 'tag t-overdue', style: 'margin-top:4px' }, 'Expired') : ''),
+          (r.rate_type || '').replace('_', ' '),
+          r.valid_from || r.valid_to
+            ? `${r.valid_from ? dt(r.valid_from) : '—'} → ${r.valid_to ? dt(r.valid_to) : 'open'}`
+            : '—',
+          el('span', { style: 'font-size:13px;color:var(--muted)' }, r.rate_detail || '—'),
+          r.storage_path
+            ? el('button', {
+                class: 'btn btn-ghost', style: 'padding:4px 10px;font-size:13px',
+                onclick: () => openRateFile(r)
+              }, r.file_name || 'Open file')
+            : r.url
+              ? el('a', { href: r.url, target: '_blank', style: 'font-size:13px' }, 'Open link')
+              : el('span', { style: 'color:var(--muted)' }, '—'),
+          canWrite()
+            ? el('button', {
+                class: 'btn btn-ghost',
+                onclick: () => { close(); rateForm(vendor, r); }
+              }, 'Edit')
+            : ''
+        ];
+      }),
+      'No contracted rates recorded yet.'));
+  };
+  drawRates();
+  addTab('rates', `Contracted rates (${(rates || []).length})`, ratePane);
+
+  /* ---- bookings ---- */
+  const bkPane = el('div', {});
+  if (canWrite()) bkPane.append(el('button', {
+    class: 'btn', style: 'margin-bottom:14px',
+    onclick: () => { close(); bookingForm(vendor); }
+  }, 'Add booking'));
+  bkPane.append(table(
+    ['Reference', 'Service', 'Date', 'Pax', 'Status'],
+    (bks || []).map(b => [
+      b.reference || '—', b.description || '—', dt(b.service_date), b.pax ?? '—',
+      el('span', { class: 'tag t-' + (b.status === 'confirmed' ? 'paid'
+        : b.status === 'cancelled' ? 'void' : 'partial') }, b.status)
+    ]),
+    'No bookings recorded yet.'));
+  addTab('bookings', `Bookings (${(bks || []).length})`, bkPane);
+
+  body.append(tabs, paneHost);
+  show('detail');
+
+  host.innerHTML = '';
+  host.append(el('div', { class: 'veil', onclick: e => e.target.classList.contains('veil') && close() },
+    el('div', { class: 'modal modal-wide' },
+      el('h3', {}, vendor.name),
+      el('p', { class: 'sub', style: 'margin-top:-10px' },
+        [vendor.city, vendor.country].filter(Boolean).join(' · ') || ''),
+      body,
+      el('div', { class: 'modal-foot' },
+        el('button', { class: 'btn btn-ghost', onclick: close }, 'Close')))));
+}
+
+async function openRateFile(r) {
+  const { data, error } = await sb.storage.from('booking-docs')
+    .createSignedUrl(r.storage_path, 60);
+  if (error) return alert('Could not open this file: ' + error.message);
+  window.open(data.signedUrl, '_blank');
+}
+
+/* Add or edit a contracted rate, with optional file upload. */
+function rateForm(vendor, existing) {
+  const title = el('input', { type: 'text', value: existing?.title || '',
+    placeholder: 'e.g. Summer 2026 contracted rates' });
+  const type = el('select', {}, ...[
+    ['contracted', 'Contracted rate'], ['group_fare', 'Group fare'],
+    ['seasonal', 'Seasonal rate'], ['promo', 'Promotional'], ['ad_hoc', 'Ad hoc']
+  ].map(([k, v]) => el('option', { value: k, ...(existing?.rate_type === k ? { selected: 'selected' } : {}) }, v)));
+  const from = el('input', { type: 'date', value: existing?.valid_from || '' });
+  const to = el('input', { type: 'date', value: existing?.valid_to || '' });
+  const cur = el('select', {}, ...['EUR', 'GBP', 'PHP', 'USD', 'CHF', 'NOK', 'SEK', 'DKK']
+    .map(c => el('option', { value: c, ...(existing?.currency === c ? { selected: 'selected' } : {}) }, c)));
+  const detailTx = el('textarea', { rows: '3',
+    placeholder: 'e.g. Twin €110/night B&B, single €95/night, city tax €3 pp' });
+  detailTx.value = existing?.rate_detail || '';
+  const url = el('input', { type: 'url', value: existing?.url || '',
+    placeholder: 'https://… supplier portal or shared sheet' });
+  const notes = el('textarea', { rows: '2' });
+  notes.value = existing?.notes || '';
+
+  const fileInput = el('input', { type: 'file' });
+  const current = existing?.file_name
+    ? el('p', { class: 'sub', style: 'margin:6px 0 0' }, 'Current file: ' + existing.file_name)
+    : '';
+
+  const body = el('div', {},
+    el('p', { class: 'sub' }, vendor.name),
+    field('Title', title),
+    el('div', { class: 'grid2' }, field('Rate type', type), field('Currency', cur)),
+    el('div', { class: 'grid2' }, field('Valid from', from), field('Valid to', to)),
+    field('Rate detail', detailTx),
+    field('Link (optional)', url),
+    field('Attach rate sheet (optional)', fileInput),
+    current,
+    field('Notes', notes));
+
+  modal(existing ? 'Edit contracted rate' : 'Add contracted rate', body, async () => {
+    if (!title.value.trim()) return 'Give this rate a title.';
+
+    const payload = {
+      vendor_id: vendor.id,
+      title: title.value.trim(),
+      rate_type: type.value,
+      valid_from: from.value || null,
+      valid_to: to.value || null,
+      currency: cur.value,
+      rate_detail: detailTx.value.trim() || null,
+      url: url.value.trim() || null,
+      notes: notes.value.trim() || null,
+      updated_at: new Date().toISOString()
+    };
+
+    const f = fileInput.files?.[0];
+    if (f) {
+      const safe = f.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `internal/rates/${Date.now()}_${safe}`;
+      const up = await sb.storage.from('booking-docs')
+        .upload(path, f, { contentType: f.type || 'application/octet-stream' });
+      if (up.error) return 'Upload failed: ' + up.error.message;
+      payload.storage_path = path;
+      payload.file_name = f.name;
+      payload.size_bytes = f.size;
+    }
+
+    const { error } = existing
+      ? await sb.from('rate_contracts').update(payload).eq('id', existing.id)
+      : await sb.from('rate_contracts').insert(payload);
+    return error ? 'Could not save: ' + error.message : null;
+  });
+}
+
+function vendorEditForm(existing) {
   const name = el('input', { type: 'text', value: existing?.name || '' });
   const cat = el('select', {}, ...Object.entries(VENDOR_CATS).map(([k, v]) =>
     el('option', { value: k, ...(existing?.category === k ? { selected: 'selected' } : {}) }, v)));
-  const contact = el('textarea', {
-    rows: '3',
-    placeholder: 'Email, phone, contact person, city — anything useful'
-  });
-  contact.value = existing?.contact || '';
+  const city = el('input', { type: 'text', value: existing?.city || '', placeholder: 'e.g. Paris' });
+  const country = el('input', { type: 'text', value: existing?.country || '', placeholder: 'e.g. France' });
+  const email = el('input', { type: 'email', value: existing?.email || '' });
+  const phone = el('input', { type: 'text', value: existing?.phone || '' });
+  const person = el('input', { type: 'text', value: existing?.contact_person || '' });
   const terms = el('input', { type: 'number', min: '0', value: existing?.terms_days ?? 30 });
+  const notes = el('textarea', { rows: '2' });
+  notes.value = existing?.notes || '';
   const active = el('select', {},
     el('option', { value: 'true', ...(existing?.active !== false ? { selected: 'selected' } : {}) }, 'Active'),
     el('option', { value: 'false', ...(existing?.active === false ? { selected: 'selected' } : {}) }, 'Inactive'));
@@ -409,17 +875,19 @@ function vendorForm(existing) {
   const body = el('div', {},
     field('Supplier name', name),
     el('div', { class: 'grid2' }, field('Category', cat), field('Payment terms (days)', terms)),
-    field('Contact details', contact),
-    field('Status', active));
+    el('div', { class: 'grid2' }, field('City', city), field('Country', country)),
+    el('div', { class: 'grid2' }, field('Email', email), field('Phone', phone)),
+    el('div', { class: 'grid2' }, field('Contact person', person), field('Status', active)),
+    field('Notes', notes));
 
   modal(existing ? 'Edit supplier' : 'Add a supplier', body, async () => {
     if (!name.value.trim()) return 'Enter a supplier name.';
     const payload = {
-      name: name.value.trim(),
-      category: cat.value,
-      contact: contact.value.trim() || null,
-      terms_days: Number(terms.value) || 30,
-      active: active.value === 'true'
+      name: name.value.trim(), category: cat.value,
+      city: city.value.trim() || null, country: country.value.trim() || null,
+      email: email.value.trim() || null, phone: phone.value.trim() || null,
+      contact_person: person.value.trim() || null, notes: notes.value.trim() || null,
+      terms_days: Number(terms.value) || 30, active: active.value === 'true'
     };
     const { error } = existing
       ? await sb.from('vendors').update(payload).eq('id', existing.id)
@@ -799,7 +1267,7 @@ function billForm(kind, cats) {
   });
 }
 
-function invoiceForm() {
+function invoiceForm(type) {
   const client = el('select', {}, el('option', { value: '' }, 'Select a client'),
     ...cache.clients.map(c => el('option', { value: c.id }, c.name)));
   const tour = el('select', {}, el('option', { value: '' }, 'Not tied to a tour'),
@@ -821,6 +1289,7 @@ function invoiceForm() {
     if (!Number(amt.value) || Number(amt.value) <= 0) return 'Enter an amount greater than zero.';
     const { error } = await sb.from('receivables').insert({
       client_id: client.value, tour_id: tour.value || null,
+      invoice_type: type || 'client',
       invoice_no: inv.value || null, amount: Number(amt.value),
       invoice_date: idate.value, due_date: ddate.value || null,
       description: desc.value || null
@@ -858,3 +1327,422 @@ function payForm(row, direction) {
 
 /* ---------- start ---------- */
 boot();
+
+
+/* ---------- booking department views ---------- */
+
+async function bookingsByKind(host, category, title, sub) {
+  const [{ data: bk }, { data: vend }] = await Promise.all([
+    sb.from('bookings').select('*').order('service_date'),
+    sb.from('vendors').select('id,name,category,city,country')
+  ]);
+  const vmap = (vend || []).reduce((m, v) => (m[v.id] = v, m), {});
+  const rows = (bk || []).filter(b => vmap[b.vendor_id]?.category === category);
+
+  host.innerHTML = '';
+  host.append(...head(title, sub));
+
+  const live = rows.filter(r => ['enquiry', 'quoted', 'confirmed'].includes(r.status));
+  host.append(el('div', { class: 'stats' },
+    stat('Bookings', rows.length, 'all time'),
+    stat('Live', live.length, 'enquiry, quoted or confirmed', live.length ? 'good' : ''),
+    stat('Confirmed', rows.filter(r => r.status === 'confirmed').length, 'ready to deliver'),
+    stat('Suppliers', new Set(rows.map(r => r.vendor_id)).size, 'in this category')));
+
+  const bar = el('div', { class: 'bar' });
+  const fStatus = el('select', {}, el('option', { value: '' }, 'All statuses'),
+    ...BOOKING_STATUS.map(x => el('option', { value: x }, x[0].toUpperCase() + x.slice(1))));
+  const fSearch = el('input', { type: 'search', placeholder: 'Search reference, supplier, description' });
+  bar.append(el('div', { class: 'field' }, el('label', {}, 'Status'), fStatus),
+    el('div', { class: 'field grow' }, el('label', {}, 'Search'), fSearch));
+  host.append(bar);
+
+  const panel = el('div');
+  host.append(panel);
+  const draw = () => {
+    const q = fSearch.value.toLowerCase();
+    const list = rows.filter(r =>
+      (!fStatus.value || r.status === fStatus.value) &&
+      (!q || [r.reference, r.description, vmap[r.vendor_id]?.name, r.notes]
+        .some(x => (x || '').toLowerCase().includes(q))));
+    panel.innerHTML = '';
+    panel.append(el('p', { class: 'sub' }, `${list.length} bookings`));
+    panel.append(table(
+      ['Supplier', 'Location', 'Reference', 'Service', 'Date', 'Pax', 'Status'],
+      list.map(r => {
+        const v = vmap[r.vendor_id] || {};
+        return [
+          el('button', { class: 'btn btn-ghost', style: 'padding:3px 9px;font-size:13px',
+            onclick: () => supplierDetail(v) }, v.name || '—'),
+          [v.city, v.country].filter(Boolean).join(', ') || '—',
+          r.reference || '—', r.description || '—', dt(r.service_date), r.pax ?? '—',
+          el('span', { class: 'tag t-' + (r.status === 'confirmed' ? 'paid'
+            : r.status === 'cancelled' ? 'void' : 'partial') }, r.status)
+        ];
+      }),
+      'No bookings in this category yet.'));
+  };
+  fStatus.addEventListener('change', draw);
+  fSearch.addEventListener('input', draw);
+  draw();
+}
+
+async function bookingsOverview(host) {
+  const [{ data: bk }, { data: vend }] = await Promise.all([
+    sb.from('bookings').select('*').order('service_date'),
+    sb.from('vendors').select('id,name,category')
+  ]);
+  const vmap = (vend || []).reduce((m, v) => (m[v.id] = v, m), {});
+  const rows = bk || [];
+
+  host.innerHTML = '';
+  host.append(...head('Bookings Overview',
+    'Every arrangement across the booking department, whatever the category.'));
+
+  const live = rows.filter(r => ['enquiry', 'quoted', 'confirmed'].includes(r.status));
+  host.append(el('div', { class: 'stats' },
+    stat('Total bookings', rows.length, 'all time'),
+    stat('Live', live.length, 'still in play', live.length ? 'good' : ''),
+    stat('Confirmed', rows.filter(r => r.status === 'confirmed').length, 'locked in'),
+    stat('Next departure',
+      live.filter(r => r.service_date).length
+        ? dt(live.filter(r => r.service_date)
+            .sort((a, b) => new Date(a.service_date) - new Date(b.service_date))[0].service_date)
+        : '—', 'earliest service date')));
+
+  host.append(el('h2', {}, 'By category'));
+  const byCat = {};
+  rows.forEach(r => {
+    const c = vmap[r.vendor_id]?.category || 'other';
+    byCat[c] = byCat[c] || { total: 0, live: 0 };
+    byCat[c].total++;
+    if (['enquiry', 'quoted', 'confirmed'].includes(r.status)) byCat[c].live++;
+  });
+  host.append(el('div', { class: 'split' },
+    ...Object.entries(byCat).sort((a, b) => b[1].total - a[1].total).map(([c, v]) =>
+      el('div', { class: 'cat' },
+        el('div', { class: 'k' }, VENDOR_CATS[c] || c),
+        el('div', { class: 'v' }, v.total),
+        el('div', { class: 'track' },
+          el('div', { class: 'fill', style: `width:${v.live / v.total * 100}%` }))))));
+
+  host.append(el('h2', {}, 'All bookings'));
+  host.append(table(
+    ['Supplier', 'Category', 'Reference', 'Service', 'Date', 'Pax', 'Status'],
+    rows.map(r => {
+      const v = vmap[r.vendor_id] || {};
+      return [v.name || '—', VENDOR_CATS[v.category] || v.category || '—',
+        r.reference || '—', r.description || '—', dt(r.service_date), r.pax ?? '—',
+        el('span', { class: 'tag t-' + (r.status === 'confirmed' ? 'paid'
+          : r.status === 'cancelled' ? 'void' : 'partial') }, r.status)];
+    }),
+    'No bookings recorded yet.'));
+}
+
+/* ---------- operations ---------- */
+
+async function opsView(host, category, title, sub) {
+  const { data } = await sb.from('v_payables_aging').select('*')
+    .eq('kind', 'operational').order('due_date');
+  const rows = (data || []).filter(r => !category || r.category === category);
+
+  host.innerHTML = '';
+  host.append(...head(title, sub));
+
+  const open = rows.filter(r => r.status !== 'paid');
+  host.append(el('div', { class: 'stats' },
+    stat('Outstanding', money(open.reduce((s, r) => s + Number(r.balance), 0)),
+      open.length + ' unpaid', open.length ? 'alert' : ''),
+    stat('Paid to date', money(rows.reduce((s, r) => s + Number(r.paid_amount), 0)), 'settled'),
+    stat('Bills', rows.length, 'in this category'),
+    stat('Overdue', rows.filter(overdue).length, 'past due date',
+      rows.filter(overdue).length ? 'alert' : '')));
+
+  const bar = el('div', { class: 'bar' });
+  const fSearch = el('input', { type: 'search', placeholder: 'Search vendor, invoice, description' });
+  bar.append(el('div', { class: 'field grow' }, el('label', {}, 'Search'), fSearch));
+  if (canWrite()) bar.append(el('button', { class: 'btn',
+    onclick: () => billForm('operational', OPS_CATS) }, 'Record an expense'));
+  host.append(bar);
+
+  const panel = el('div');
+  host.append(panel);
+  const draw = () => {
+    const q = fSearch.value.toLowerCase();
+    const list = rows.filter(r => !q ||
+      [r.vendor_name, r.invoice_no, r.description].some(x => (x || '').toLowerCase().includes(q)));
+    panel.innerHTML = '';
+    panel.append(table(
+      ['Vendor', 'Category', 'Description', 'Invoice', 'Due', 'Amount', 'Balance', 'Status', ''],
+      list.map(r => [
+        r.vendor_name, OPS_CATS[r.category] || r.category, r.description || '—',
+        r.invoice_no || '—', dt(r.due_date),
+        el('span', { class: 'num' }, money(r.amount)),
+        el('span', { class: 'num' }, money(r.balance)),
+        el('span', { class: 'tag t-' + (overdue(r) ? 'overdue' : r.status) },
+          overdue(r) ? 'Overdue' : r.status),
+        canWrite() && r.status !== 'paid'
+          ? el('button', { class: 'btn btn-ghost', onclick: () => payForm(r, 'out') }, 'Pay') : ''
+      ]),
+      'Nothing recorded in this category yet.'));
+  };
+  fSearch.addEventListener('input', draw);
+  draw();
+}
+
+/* ---------- purchase orders ---------- */
+
+async function purchaseOrders(host) {
+  const { data } = await sb.from('purchase_orders').select('*').order('needed_by');
+  const rows = data || [];
+  const vmap = cache.vendors.reduce((m, v) => (m[v.id] = v, m), {});
+
+  host.innerHTML = '';
+  host.append(...head('Purchase Orders',
+    'Commitments raised before a supplier invoices. Closed once the bill arrives.'));
+
+  const open = rows.filter(r => r.status === 'open');
+  host.append(el('div', { class: 'stats' },
+    stat('Open orders', open.length, 'awaiting invoice', open.length ? 'good' : ''),
+    stat('Committed', money(open.reduce((s, r) => s + Number(r.amount), 0)), 'not yet billed'),
+    stat('Closed', rows.filter(r => r.status === 'closed').length, 'invoiced'),
+    stat('Total raised', rows.length, 'all time')));
+
+  const bar = el('div', { class: 'bar' });
+  if (canWrite()) bar.append(el('button', { class: 'btn', onclick: poForm }, 'Raise a purchase order'));
+  host.append(bar);
+
+  host.append(table(
+    ['PO number', 'Supplier', 'Category', 'Description', 'Needed by', 'Amount', 'Status'],
+    rows.map(r => [
+      r.po_number || '—', vmap[r.vendor_id]?.name || '—',
+      ALL_CATS[r.category] || r.category, r.description || '—',
+      dt(r.needed_by), el('span', { class: 'num' }, money(r.amount)),
+      el('span', { class: 'tag t-' + (r.status === 'closed' ? 'paid'
+        : r.status === 'cancelled' ? 'void' : 'unpaid') }, r.status)
+    ]),
+    'No purchase orders raised yet.'));
+}
+
+function poForm() {
+  const num = el('input', { type: 'text', placeholder: 'e.g. PO-2026-014' });
+  const vendor = el('select', {}, el('option', { value: '' }, 'Select a supplier'),
+    ...cache.vendors.map(v => el('option', { value: v.id }, v.name)));
+  const cat = el('select', {}, ...Object.entries(ALL_CATS).map(([k, v]) =>
+    el('option', { value: k }, v)));
+  const desc = el('input', { type: 'text', placeholder: 'What is being ordered' });
+  const amt = el('input', { type: 'number', step: '0.01', min: '0' });
+  const cur = el('select', {}, ...['PHP', 'EUR', 'GBP', 'USD'].map(c => el('option', { value: c }, c)));
+  const needed = el('input', { type: 'date' });
+  const tour = el('select', {}, el('option', { value: '' }, 'Not tied to a tour'),
+    ...cache.tours.map(t => el('option', { value: t.id }, `${t.code} — ${t.title}`)));
+  const notes = el('textarea', { rows: '2' });
+
+  const body = el('div', {},
+    el('div', { class: 'grid2' }, field('PO number', num), field('Needed by', needed)),
+    field('Supplier', vendor),
+    el('div', { class: 'grid2' }, field('Category', cat), field('Tour', tour)),
+    field('Description', desc),
+    el('div', { class: 'grid2' }, field('Amount', amt), field('Currency', cur)),
+    field('Notes', notes));
+
+  modal('Raise a purchase order', body, async () => {
+    if (!vendor.value) return 'Choose a supplier.';
+    const { error } = await sb.from('purchase_orders').insert({
+      po_number: num.value.trim() || null, vendor_id: vendor.value,
+      category: cat.value, description: desc.value.trim() || null,
+      amount: Number(amt.value) || 0, currency: cur.value,
+      needed_by: needed.value || null, tour_id: tour.value || null,
+      notes: notes.value.trim() || null
+    });
+    return error ? 'Could not save: ' + error.message : null;
+  });
+}
+
+/* ---------- payment schedule ---------- */
+
+async function paymentSchedule(host) {
+  const { data } = await sb.from('v_payables_aging').select('*')
+    .neq('status', 'paid').order('due_date');
+  const rows = (data || []).filter(r => r.due_date);
+
+  host.innerHTML = '';
+  host.append(...head('Payment Schedule',
+    'What falls due, and when. Ordered by due date across every category.'));
+
+  const today = new Date().setHours(0, 0, 0, 0);
+  const wk = new Date(today + 7 * 864e5), mo = new Date(today + 30 * 864e5);
+  const bucket = r => {
+    const d = new Date(r.due_date);
+    if (d < today) return 'Overdue';
+    if (d <= wk) return 'Next 7 days';
+    if (d <= mo) return 'Next 30 days';
+    return 'Later';
+  };
+  const groups = { 'Overdue': [], 'Next 7 days': [], 'Next 30 days': [], 'Later': [] };
+  rows.forEach(r => groups[bucket(r)].push(r));
+
+  host.append(el('div', { class: 'stats' },
+    ...Object.entries(groups).map(([k, v]) =>
+      stat(k, money(v.reduce((s, r) => s + Number(r.balance), 0)),
+        v.length + ' bills', k === 'Overdue' && v.length ? 'alert' : ''))));
+
+  Object.entries(groups).forEach(([k, v]) => {
+    if (!v.length) return;
+    host.append(el('h2', {}, k));
+    host.append(table(
+      ['Due', 'Vendor', 'Category', 'Reference', 'Balance', ''],
+      v.map(r => [
+        dt(r.due_date), r.vendor_name, ALL_CATS[r.category] || r.category,
+        r.invoice_no || r.tour_code || '—',
+        el('span', { class: 'num' }, money(r.balance)),
+        canWrite() ? el('button', { class: 'btn btn-ghost', onclick: () => payForm(r, 'out') }, 'Pay') : ''
+      ]), ''));
+  });
+
+  if (!rows.length) host.append(el('div', { class: 'panel' },
+    el('div', { class: 'empty' }, 'Nothing scheduled — no unpaid bills have a due date.')));
+}
+
+/* ---------- payments in / out ---------- */
+
+async function paymentsList(host, direction, title, sub) {
+  const { data } = await sb.from('payments').select('*')
+    .eq('direction', direction).order('paid_on', { ascending: false });
+  const rows = data || [];
+
+  host.innerHTML = '';
+  host.append(...head(title, sub));
+
+  const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+  const thisMonth = rows.filter(r => new Date(r.paid_on).getMonth() === new Date().getMonth()
+    && new Date(r.paid_on).getFullYear() === new Date().getFullYear());
+  host.append(el('div', { class: 'stats' },
+    stat('Total', money(total), rows.length + ' payments',
+      direction === 'in' ? 'good' : ''),
+    stat('This month', money(thisMonth.reduce((s, r) => s + Number(r.amount), 0)),
+      thisMonth.length + ' payments'),
+    stat('Methods', new Set(rows.map(r => r.method).filter(Boolean)).size, 'distinct'),
+    stat('Latest', rows.length ? dt(rows[0].paid_on) : '—', 'most recent')));
+
+  host.append(table(
+    ['Date', 'Method', 'Reference', 'Amount'],
+    rows.map(r => [dt(r.paid_on), r.method || '—', r.reference || '—',
+      el('span', { class: 'num' }, money(r.amount))]),
+    direction === 'in' ? 'No payments received yet.' : 'No payments made yet.'));
+}
+
+/* ---------- collections ---------- */
+
+async function collectionsOverview(host) {
+  const { data } = await sb.from('v_receivables_aging').select('*').order('due_date');
+  const rows = data || [];
+
+  host.innerHTML = '';
+  host.append(...head('Collections Overview',
+    'Everything owed to the company, across client billing and visa services.'));
+
+  const open = rows.filter(r => r.status !== 'settled');
+  const byType = t => open.filter(r => (r.invoice_type || 'client') === t);
+  host.append(el('div', { class: 'stats' },
+    stat('Total outstanding', money(open.reduce((s, r) => s + Number(r.balance), 0)),
+      open.length + ' open invoices', 'good'),
+    stat('Client invoices', money(byType('client').reduce((s, r) => s + Number(r.balance), 0)),
+      byType('client').length + ' invoices'),
+    stat('Visa services', money(byType('visa').reduce((s, r) => s + Number(r.balance), 0)),
+      byType('visa').length + ' invoices'),
+    stat('Overdue', rows.filter(overdue).length, 'past due date',
+      rows.filter(overdue).length ? 'alert' : '')));
+
+  host.append(el('h2', {}, 'Ageing'));
+  const buckets = ['current', '1-30', '31-60', '61-90', '90+'];
+  host.append(el('div', { class: 'aging' },
+    ...buckets.map((b, i) => el('div', { class: 'age b' + (i + 1) },
+      el('div', { class: 'k' }, b === 'current' ? 'Not yet due' : b + ' days'),
+      el('div', { class: 'v' }, money(open.filter(r => r.aging_bucket === b)
+        .reduce((s, r) => s + Number(r.balance), 0)))))));
+
+  host.append(el('h2', {}, 'Open invoices'));
+  host.append(table(
+    ['Client', 'Type', 'Invoice', 'Due', 'Amount', 'Balance', 'Status'],
+    open.map(r => [
+      r.client_name, (r.invoice_type || 'client') === 'visa' ? 'Visa service' : 'Client',
+      r.invoice_no || '—', dt(r.due_date),
+      el('span', { class: 'num' }, money(r.amount)),
+      el('span', { class: 'num' }, money(r.balance)),
+      el('span', { class: 'tag t-' + (overdue(r) ? 'overdue' : r.status) },
+        overdue(r) ? 'Overdue' : r.status)
+    ]),
+    'Nothing outstanding.'));
+}
+
+/* ---------- custom reports ---------- */
+
+async function customReports(host) {
+  host.innerHTML = '';
+  host.append(...head('Custom Reports',
+    'Build a figure from any slice of the ledger, then export it.'));
+
+  const src = el('select', {},
+    el('option', { value: 'payables' }, 'Payables'),
+    el('option', { value: 'receivables' }, 'Receivables'),
+    el('option', { value: 'bookings' }, 'Bookings'));
+  const from = el('input', { type: 'date' });
+  const to = el('input', { type: 'date' });
+  const bar = el('div', { class: 'bar' },
+    el('div', { class: 'field' }, el('label', {}, 'Source'), src),
+    el('div', { class: 'field' }, el('label', {}, 'From'), from),
+    el('div', { class: 'field' }, el('label', {}, 'To'), to));
+  const run = el('button', { class: 'btn' }, 'Run report');
+  const dl = el('button', { class: 'btn btn-ghost', style: 'margin-left:8px' }, 'Download CSV');
+  bar.append(el('div', { class: 'field' }, el('label', {}, '\u00a0'), el('span', {}, run, dl)));
+  host.append(bar);
+
+  const out = el('div');
+  host.append(out);
+  let lastRows = [], lastCols = [];
+
+  run.addEventListener('click', async () => {
+    out.innerHTML = '<p class="sub">Running…</p>';
+    let cols, rows;
+    if (src.value === 'payables') {
+      const { data } = await sb.from('v_payables_aging').select('*');
+      rows = (data || []).filter(r => (!from.value || r.invoice_date >= from.value)
+        && (!to.value || r.invoice_date <= to.value));
+      cols = ['vendor_name', 'category', 'invoice_no', 'invoice_date', 'due_date',
+        'amount', 'paid_amount', 'balance', 'status'];
+    } else if (src.value === 'receivables') {
+      const { data } = await sb.from('v_receivables_aging').select('*');
+      rows = (data || []).filter(r => (!from.value || r.invoice_date >= from.value)
+        && (!to.value || r.invoice_date <= to.value));
+      cols = ['client_name', 'invoice_type', 'invoice_no', 'invoice_date', 'due_date',
+        'amount', 'received_amount', 'balance', 'status'];
+    } else {
+      const { data } = await sb.from('bookings').select('*');
+      const vmap = cache.vendors.reduce((m, v) => (m[v.id] = v.name, m), {});
+      rows = (data || []).filter(r => (!from.value || (r.service_date || '') >= from.value)
+        && (!to.value || (r.service_date || '') <= to.value))
+        .map(r => ({ ...r, supplier: vmap[r.vendor_id] || '' }));
+      cols = ['supplier', 'reference', 'description', 'service_date', 'pax', 'status', 'currency', 'amount'];
+    }
+    lastRows = rows; lastCols = cols;
+    out.innerHTML = '';
+    out.append(el('p', { class: 'sub' }, `${rows.length} rows`));
+    out.append(table(cols.map(c => c.replace(/_/g, ' ')),
+      rows.slice(0, 200).map(r => cols.map(c =>
+        typeof r[c] === 'number' ? el('span', { class: 'num' }, money(r[c])) : (r[c] ?? '—'))),
+      'No rows in that range.'));
+    if (rows.length > 200) out.append(el('p', { class: 'sub' },
+      `Showing the first 200 of ${rows.length}. Download the CSV for everything.`));
+  });
+
+  dl.addEventListener('click', () => {
+    if (!lastRows.length) return alert('Run a report first.');
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = [lastCols.join(','), ...lastRows.map(r => lastCols.map(c => esc(r[c])).join(','))].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `${src.value}-report.csv`;
+    a.click();
+  });
+}
