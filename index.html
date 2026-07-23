@@ -4,21 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Finance Portal — Discover Group</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230d1a38'/%3E%3Cpath d='M5 3h6.6c5 0 8.4 3.6 8.4 9s-3.4 9-8.4 9H5V3z' fill='%23e8b94a'/%3E%3Cpath d='M9.6 7.4h2.2c2.5 0 4 1.8 4 4.6s-1.5 4.6-4 4.6H9.6V7.4z' fill='%230d1a38'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23092E74'/%3E%3Cg transform='translate(14 14) scale(0.72)'%3E%3Cpath fill='%23FFFFFF' d='M0.5 0H50C79 0 100 20 100 47C100 55.5 97.8 62.5 93.5 68.5L83.5 68.5C88.5 62.5 90.5 55.5 90.5 47C90.5 26.5 74 13.5 50 13.5H21.5C21.7 32 25.5 47 32 57.5C36.5 65 42 70 48 73C38 71.5 29 65 22 55C12 40.5 6 22 0.5 0Z'/%3E%3Cpath fill='%2329A2DB' d='M100 47C100 56 97.5 63.5 93.5 69C85.5 84.5 69.5 93.5 48 93.5H0.3V79.5H48C67 79.5 81 71.5 88 58.5C90.3 54.5 91.5 50.5 91.7 47Z'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#0f1e3d;
+  --ink:#0d2145;
   --paper:#f1f4f8;
   --card:#ffffff;
   --line:#dde3ec;
-  --navy:#12234a;
-  --navy-deep:#0d1a38;
-  --navy-soft:#e8edf5;
-  --gold:#e8b94a;
-  --gold-deep:#c9962e;
+  --navy:#0b2e6b;
+  --navy-deep:#092348;
+  --navy-soft:#e6eefa;
+  --gold:#29a2db;
+  --gold-deep:#1b86bb;
   --clay:#b4521f;
   --muted:#64748b;
   --radius:10px;
@@ -26,8 +26,8 @@
   --body:'Inter',system-ui,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,monospace;
   /* legacy aliases so existing rules keep working */
-  --teal:#12234a;
-  --teal-soft:#e8edf5;
+  --teal:#0b2e6b;
+  --teal-soft:#e6eefa;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
@@ -39,8 +39,8 @@ button{font-family:inherit;cursor:pointer}
 #login{min-height:100vh;display:grid;place-items:center;padding:24px}
 .login-card{width:100%;max-width:410px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:38px 34px;box-shadow:0 4px 20px rgba(15,30,61,.07)}
 .brand{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0;text-transform:uppercase;display:flex;align-items:center;gap:12px}
-.brand .mark{width:42px;height:42px;border-radius:11px;background:linear-gradient(145deg,#1a2f5c,#0d1a38);display:grid;place-items:center;flex:0 0 auto;box-shadow:0 2px 8px rgba(15,30,61,.22)}
-.brand .mark svg{width:23px;height:23px}
+.brand .mark{width:44px;height:44px;border-radius:11px;background:#0b2e6b;display:grid;place-items:center;flex:0 0 auto;padding:8px;box-shadow:0 2px 8px rgba(9,46,116,.25)}
+.brand .mark svg{width:100%;height:100%;display:block}
 .brand .txt{display:block}
 .brand small{display:block;font-family:var(--body);font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:none;color:var(--muted);margin-top:2px}
 .login-card p{color:var(--muted);font-size:14px;margin:22px 0 24px;line-height:1.55}
@@ -58,13 +58,16 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);outline-of
 .msg-ok{background:var(--navy-soft);color:var(--navy);border:1px solid #c8d6ea}
 
 /* ---------- Shell ---------- */
-.shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
-.side{background:var(--navy-deep);color:#c8d4e6;padding:24px 0;display:flex;flex-direction:column}
+.shell{display:grid;grid-template-columns:252px 1fr;min-height:100vh}
+.side{background:var(--navy-deep);color:#c8d4e6;padding:22px 0 0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .side .brand{color:#fff;font-size:17px;padding:0 20px}
-.side .brand .mark{background:#fff;box-shadow:none}
+.side .brand .mark{background:#0b2e6b;box-shadow:none}
 .side .brand small{color:#8fa3c4;letter-spacing:.08em}
-nav{margin-top:32px;flex:1}
-nav button{display:block;width:calc(100% - 24px);margin:1px 12px;text-align:left;background:none;border:0;border-radius:8px;color:#a8b8d4;padding:10px 14px;font-size:14px;font-weight:500}
+nav{margin-top:20px;flex:1;overflow-y:auto;padding-bottom:8px}
+nav::-webkit-scrollbar{width:5px}
+nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
+nav button{display:flex;align-items:center;gap:11px;width:calc(100% - 22px);margin:1px 11px;text-align:left;background:none;border:0;border-radius:8px;color:#a8b8d4;padding:9px 13px;font-size:13.5px;font-weight:500}
+.ico{width:17px;text-align:center;opacity:.75;font-size:13px;flex:0 0 auto}
 nav button:hover{color:#fff;background:rgba(255,255,255,.07)}
 nav button.on{color:var(--navy-deep);background:#fff;font-weight:600}
 .nav-group{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#6b7f9e;padding:18px 26px 6px;font-weight:600}
@@ -140,6 +143,34 @@ tbody tr:hover{background:#f7f9fc}
 .progress{height:3px;background:#eef2f7;border-radius:2px;overflow:hidden;margin-top:12px}
 .progress div{height:100%;background:var(--navy);transition:width .2s}
 
+/* ---------- Department hub cards ---------- */
+.hub{display:flex;flex-direction:column;gap:16px;margin-top:6px}
+.hcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px 24px;box-shadow:0 1px 2px rgba(13,33,69,.04)}
+.hhead{display:flex;gap:16px;align-items:flex-start}
+.hicon{width:52px;height:52px;border-radius:12px;display:grid;place-items:center;font-size:22px;flex:0 0 auto}
+.hcard h3{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.hcard .hsub{color:var(--muted);font-size:14px;margin:4px 0 0}
+.hlinks{display:grid;grid-template-columns:1fr 1fr;gap:0 26px;margin:18px 0 0;border-top:1px solid var(--line);padding-top:6px}
+.hlink{display:flex;align-items:center;gap:10px;padding:10px 2px;background:none;border:0;border-bottom:1px solid #eef2f7;width:100%;text-align:left;font-size:14px;color:var(--ink);font-weight:500}
+.hlink:hover{color:var(--navy)}
+.hlink .chev{margin-left:auto;color:#b6c2d4;font-size:15px}
+.hlink .hi{width:18px;text-align:center;opacity:.65;font-size:13px}
+.hlink .cnt{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+.hmore{display:inline-flex;align-items:center;gap:6px;background:none;border:0;padding:14px 2px 0;font-size:14px;font-weight:600}
+.hnote{display:flex;gap:9px;align-items:flex-start;background:var(--navy-soft);border-radius:8px;padding:11px 13px;margin-top:14px;font-size:13px;color:var(--navy)}
+.welcome{font-size:29px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
+@media(max-width:760px){.hlinks{grid-template-columns:1fr}}
+
+/* ---------- Supplier detail ---------- */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:4px 0 20px}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:9px 14px;font-size:14px;font-weight:500;color:var(--muted);margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--navy);border-bottom-color:var(--navy);font-weight:600}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:9px 18px;font-size:14px}
+.kv-k{color:var(--muted);font-size:13px}
+.kv-v{font-weight:500;word-break:break-word}
+.modal-wide{max-width:860px}
+
 /* ---------- Modal ---------- */
 .veil{position:fixed;inset:0;background:rgba(18,33,31,.45);display:grid;place-items:center;padding:20px;z-index:50}
 .modal{background:var(--card);border-radius:var(--radius);width:100%;max-width:560px;max-height:90vh;overflow:auto;padding:28px}
@@ -149,10 +180,9 @@ tbody tr:hover{background:#f7f9fc}
 
 @media(max-width:860px){
   .shell{grid-template-columns:1fr}
-  .side{padding:18px 0}
+  .side{padding:18px 0;position:static;height:auto}
   nav{margin-top:14px;display:flex;overflow-x:auto;gap:2px}
-  nav button{white-space:nowrap;border-left:0;border-bottom:3px solid transparent;padding:10px 16px}
-  nav button.on{border-left:0;border-bottom-color:var(--gold)}
+  nav button{white-space:nowrap;padding:10px 16px}
   .nav-group{display:none}
   main{padding:22px 18px}
   .grid2{grid-template-columns:1fr}
@@ -167,12 +197,7 @@ tbody tr:hover{background:#f7f9fc}
 <section id="login">
   <div class="login-card">
     <h1 class="brand">
-      <span class="mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M5 3h6.6c5 0 8.4 3.6 8.4 9s-3.4 9-8.4 9H5V3z" fill="#e8b94a"/>
-          <path d="M9.6 7.4h2.2c2.5 0 4 1.8 4 4.6s-1.5 4.6-4 4.6H9.6V7.4z" fill="#12234a"/>
-        </svg>
-      </span>
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none"><path fill="#FFFFFF" d="M0.5 0H50C79 0 100 20 100 47C100 55.5 97.8 62.5 93.5 68.5L83.5 68.5C88.5 62.5 90.5 55.5 90.5 47C90.5 26.5 74 13.5 50 13.5H21.5C21.7 32 25.5 47 32 57.5C36.5 65 42 70 48 73C38 71.5 29 65 22 55C12 40.5 6 22 0.5 0Z"/><path fill="#29A2DB" d="M100 47C100 56 97.5 63.5 93.5 69C85.5 84.5 69.5 93.5 48 93.5H0.3V79.5H48C67 79.5 81 71.5 88 58.5C90.3 54.5 91.5 50.5 91.7 47Z"/></svg></span>
       <span class="txt">Discover Group<small>Finance Portal</small></span>
     </h1>
     <p>Sign in with your company account. Access is granted by a finance administrator.</p>
@@ -193,29 +218,48 @@ tbody tr:hover{background:#f7f9fc}
 <div class="shell hidden" id="app">
   <aside class="side">
     <h1 class="brand">
-      <span class="mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M5 3h6.6c5 0 8.4 3.6 8.4 9s-3.4 9-8.4 9H5V3z" fill="#12234a"/>
-          <path d="M9.6 7.4h2.2c2.5 0 4 1.8 4 4.6s-1.5 4.6-4 4.6H9.6V7.4z" fill="#fff"/>
-        </svg>
-      </span>
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100" fill="none"><path fill="#FFFFFF" d="M0.5 0H50C79 0 100 20 100 47C100 55.5 97.8 62.5 93.5 68.5L83.5 68.5C88.5 62.5 90.5 55.5 90.5 47C90.5 26.5 74 13.5 50 13.5H21.5C21.7 32 25.5 47 32 57.5C36.5 65 42 70 48 73C38 71.5 29 65 22 55C12 40.5 6 22 0.5 0Z"/><path fill="#29A2DB" d="M100 47C100 56 97.5 63.5 93.5 69C85.5 84.5 69.5 93.5 48 93.5H0.3V79.5H48C67 79.5 81 71.5 88 58.5C90.3 54.5 91.5 50.5 91.7 47Z"/></svg></span>
       <span class="txt">Discover Group<small>Finance Command Center</small></span>
     </h1>
     <nav>
       <div class="nav-group">Overview</div>
-      <button data-view="dashboard" class="on">Dashboard</button>
-      <div class="nav-group">Payables</div>
-      <button data-view="bookings">Tour bookings</button>
-      <button data-view="operational">Operational expense</button>
+      <button data-view="dashboard" class="on"><span class="ico">▤</span>Dashboard</button>
+
+      <div class="nav-group">Booking department</div>
+      <button data-view="bk_tour"><span class="ico">▣</span>Tour Bookings</button>
+      <button data-view="bk_air"><span class="ico">✈</span>Airline Bookings</button>
+      <button data-view="bk_hotel"><span class="ico">▤</span>Hotel Bookings</button>
+      <button data-view="bk_land"><span class="ico">▬</span>Land Arrangements</button>
+      <button data-view="bk_optional"><span class="ico">◎</span>Optional Tours</button>
+      <button data-view="suppliers"><span class="ico">◈</span>Booking Suppliers</button>
+      <button data-view="bk_overview"><span class="ico">▥</span>Bookings Overview</button>
+      <button data-view="documents"><span class="ico">▦</span>Documents</button>
+
+      <div class="nav-group">Payables (Trade)</div>
+      <button data-view="pay_invoices"><span class="ico">▤</span>Supplier Invoices</button>
+      <button data-view="pay_po"><span class="ico">▣</span>Purchase Orders</button>
+      <button data-view="pay_schedule"><span class="ico">▦</span>Payment Schedule</button>
+      <button data-view="pay_made"><span class="ico">✓</span>Payments Made</button>
+
+      <div class="nav-group">Finance (Operations)</div>
+      <button data-view="op_all"><span class="ico">▤</span>Operational Expenses</button>
+      <button data-view="op_utilities"><span class="ico">⚡</span>Utilities</button>
+      <button data-view="op_rentals"><span class="ico">⌂</span>Rentals</button>
+      <button data-view="op_salaries"><span class="ico">◔</span>Salaries &amp; Wages</button>
+      <button data-view="op_office"><span class="ico">▢</span>Office Expenses</button>
+      <button data-view="op_other"><span class="ico">⋯</span>Other Expenses</button>
+
       <div class="nav-group">Receivables</div>
-      <button data-view="receivables">Client invoices</button>
-      <div class="nav-group">Booking dept</div>
-      <button data-view="suppliers">Suppliers</button>
-      <button data-view="documents">Documents</button>
+      <button data-view="ar_client"><span class="ico">▤</span>Client Invoices</button>
+      <button data-view="ar_visa"><span class="ico">▣</span>Visa Service Invoices</button>
+      <button data-view="ar_received"><span class="ico">◉</span>Payments Received</button>
+      <button data-view="ar_overview"><span class="ico">▥</span>Collections Overview</button>
+
       <div class="nav-group">Reports</div>
-      <button data-view="aging">Aging report</button>
-      <button data-view="margin">Tour margin</button>
-      <button data-view="ledger">Payment ledger</button>
+      <button data-view="aging"><span class="ico">◕</span>Aging Report</button>
+      <button data-view="margin"><span class="ico">◢</span>Tour Margin</button>
+      <button data-view="ledger"><span class="ico">▤</span>Payment Ledger</button>
+      <button data-view="custom"><span class="ico">▦</span>Custom Reports</button>
     </nav>
     <div class="side-foot">
       <div class="who" id="whoName">—</div>
