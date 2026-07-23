@@ -97,6 +97,33 @@ https://discovergrp.github.io/dgfinanceportal/
 **Authentication → URL Configuration** → set Site URL to your Pages URL and
 add it to Redirect URLs. This stops the key being used from another site.
 
+## Booking department documents
+
+A shared file library under **Booking dept → Documents**. Files live in a
+private Supabase Storage bucket (`booking-docs`, 50 MB per file) and are
+served only through short-lived signed URLs — nothing is ever public.
+
+**Two access tiers:**
+
+| Tier | Contents | Who can open |
+|---|---|---|
+| Internal | Rate sheets, budgets, invoices, trackers | Anyone signed in |
+| Restricted | Passenger manifests | Managers and admins only |
+
+Anything categorised as a **manifest** is filed as restricted automatically —
+the category cannot be uploaded as internal. These files hold passport
+numbers and dates of birth, so the tighter tier is the point. Both the
+metadata row and the file itself are protected: the storage path is
+prefixed `restricted/`, and the bucket policy checks that prefix
+independently of the table.
+
+**Only managers and admins can upload or delete.** Clerks and viewers can
+read internal documents but cannot change the library.
+
+Category is guessed from the filename on upload (a file named
+`..._ROOM_ARRANGEMENT_...` lands as a manifest) — you can override it before
+saving.
+
 ## How security works here
 
 The publishable key is public — that's how Supabase is designed. Protection

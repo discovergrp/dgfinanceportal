@@ -4,93 +4,103 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Finance Portal — Discover Group</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230d1a38'/%3E%3Cpath d='M5 3h6.6c5 0 8.4 3.6 8.4 9s-3.4 9-8.4 9H5V3z' fill='%23e8b94a'/%3E%3Cpath d='M9.6 7.4h2.2c2.5 0 4 1.8 4 4.6s-1.5 4.6-4 4.6H9.6V7.4z' fill='%230d1a38'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#12211f;
-  --paper:#f7f5ef;
+  --ink:#0f1e3d;
+  --paper:#f1f4f8;
   --card:#ffffff;
-  --line:#dcd8cc;
-  --teal:#0f5c54;
-  --teal-soft:#e3efec;
+  --line:#dde3ec;
+  --navy:#12234a;
+  --navy-deep:#0d1a38;
+  --navy-soft:#e8edf5;
+  --gold:#e8b94a;
+  --gold-deep:#c9962e;
   --clay:#b4521f;
-  --gold:#c9a227;
-  --muted:#6d7370;
-  --radius:6px;
-  --display:'Fraunces',Georgia,serif;
+  --muted:#64748b;
+  --radius:10px;
+  --display:'Inter',system-ui,sans-serif;
   --body:'Inter',system-ui,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,monospace;
+  /* legacy aliases so existing rules keep working */
+  --teal:#12234a;
+  --teal-soft:#e8edf5;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
-a{color:var(--teal)}
+a{color:var(--navy)}
 button{font-family:inherit;cursor:pointer}
 .hidden{display:none !important}
 
 /* ---------- Login ---------- */
 #login{min-height:100vh;display:grid;place-items:center;padding:24px}
-.login-card{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:36px 32px}
-.brand{font-family:var(--display);font-size:27px;font-weight:700;letter-spacing:-.02em;margin:0}
-.brand small{display:block;font-family:var(--body);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-top:6px}
-.login-card p{color:var(--muted);font-size:14px;margin:18px 0 24px}
-label{display:block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;font-family:inherit;font-size:15px;color:var(--ink)}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal)}
+.login-card{width:100%;max-width:410px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:38px 34px;box-shadow:0 4px 20px rgba(15,30,61,.07)}
+.brand{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0;text-transform:uppercase;display:flex;align-items:center;gap:12px}
+.brand .mark{width:42px;height:42px;border-radius:11px;background:linear-gradient(145deg,#1a2f5c,#0d1a38);display:grid;place-items:center;flex:0 0 auto;box-shadow:0 2px 8px rgba(15,30,61,.22)}
+.brand .mark svg{width:23px;height:23px}
+.brand .txt{display:block}
+.brand small{display:block;font-family:var(--body);font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:none;color:var(--muted);margin-top:2px}
+.login-card p{color:var(--muted);font-size:14px;margin:22px 0 24px;line-height:1.55}
+label{display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+input,select,textarea{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:inherit;font-size:15px;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);outline-offset:1px;border-color:var(--navy)}
 .field{margin-bottom:16px}
-.btn{background:var(--teal);color:#fff;border:1px solid var(--teal);padding:10px 18px;border-radius:var(--radius);font-weight:600;font-size:14px}
-.btn:hover{background:#0c4a44}
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);padding:10px 18px;border-radius:8px;font-weight:600;font-size:14px}
+.btn:hover{background:var(--navy-deep)}
 .btn-ghost{background:transparent;color:var(--ink);border-color:var(--line)}
-.btn-ghost:hover{background:#efece4}
+.btn-ghost:hover{background:#eef2f7}
 .btn-full{width:100%}
 .msg{font-size:14px;padding:10px 12px;border-radius:var(--radius);margin-bottom:16px}
 .msg-err{background:#fbeae4;color:#8a3a12;border:1px solid #f0cdbd}
-.msg-ok{background:var(--teal-soft);color:#0c4a44;border:1px solid #bcdcd5}
+.msg-ok{background:var(--navy-soft);color:var(--navy);border:1px solid #c8d6ea}
 
 /* ---------- Shell ---------- */
 .shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
-.side{background:var(--ink);color:#e8e6df;padding:26px 0;display:flex;flex-direction:column}
-.side .brand{color:#fff;font-size:21px;padding:0 24px}
-.side .brand small{color:var(--gold)}
+.side{background:var(--navy-deep);color:#c8d4e6;padding:24px 0;display:flex;flex-direction:column}
+.side .brand{color:#fff;font-size:17px;padding:0 20px}
+.side .brand .mark{background:#fff;box-shadow:none}
+.side .brand small{color:#8fa3c4;letter-spacing:.08em}
 nav{margin-top:32px;flex:1}
-nav button{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;color:#b9bdb9;padding:11px 24px;font-size:14px;font-weight:500}
-nav button:hover{color:#fff;background:rgba(255,255,255,.05)}
-nav button.on{color:#fff;border-left-color:var(--gold);background:rgba(255,255,255,.08)}
-.nav-group{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6f7570;padding:20px 24px 8px}
-.side-foot{padding:16px 24px;border-top:1px solid rgba(255,255,255,.1);font-size:13px}
+nav button{display:block;width:calc(100% - 24px);margin:1px 12px;text-align:left;background:none;border:0;border-radius:8px;color:#a8b8d4;padding:10px 14px;font-size:14px;font-weight:500}
+nav button:hover{color:#fff;background:rgba(255,255,255,.07)}
+nav button.on{color:var(--navy-deep);background:#fff;font-weight:600}
+.nav-group{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#6b7f9e;padding:18px 26px 6px;font-weight:600}
+.side-foot{padding:16px 26px;border-top:1px solid rgba(255,255,255,.09);font-size:13px}
 .side-foot .who{color:#fff;font-weight:500}
-.side-foot .role{color:#8f948f;font-size:12px;text-transform:capitalize}
-.side-foot button{margin-top:10px;background:none;border:1px solid rgba(255,255,255,.25);color:#e8e6df;padding:6px 12px;border-radius:var(--radius);font-size:13px}
+.side-foot .role{color:#7e91b3;font-size:12px;text-transform:capitalize}
+.side-foot button{margin-top:10px;background:none;border:1px solid rgba(255,255,255,.22);color:#c8d4e6;padding:6px 12px;border-radius:8px;font-size:13px}
 
 main{padding:32px 36px;max-width:1180px}
-h1{font-family:var(--display);font-size:30px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
+h1{font-family:var(--display);font-size:29px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
 .sub{color:var(--muted);font-size:14px;margin:0 0 28px}
-h2{font-family:var(--display);font-size:20px;font-weight:600;margin:34px 0 14px}
+h2{font-family:var(--display);font-size:18px;font-weight:600;letter-spacing:-.01em;margin:32px 0 14px}
 
 /* ---------- Cards / stats ---------- */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:0 1px 2px rgba(15,30,61,.04)}
 .stat .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.stat .v{font-family:var(--mono);font-size:25px;font-weight:500;margin-top:8px;letter-spacing:-.02em}
+.stat .v{font-family:var(--mono);font-size:26px;font-weight:500;margin-top:8px;letter-spacing:-.03em;color:var(--navy)}
 .stat .n{font-size:12px;color:var(--muted);margin-top:4px}
 .stat.alert .v{color:var(--clay)}
-.stat.good .v{color:var(--teal)}
+.stat.good .v{color:#1a7f5a}
 
 /* ---------- Tables ---------- */
-.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 2px rgba(15,30,61,.04)}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:11px 14px;border-bottom:1px solid var(--line);background:#faf9f5;white-space:nowrap}
-td{padding:11px 14px;border-bottom:1px solid #efece4;vertical-align:middle}
+th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:12px 14px;border-bottom:1px solid var(--line);background:#f7f9fc;white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid #eef2f7;vertical-align:middle}
 tr:last-child td{border-bottom:0}
-tbody tr:hover{background:#faf9f5}
+tbody tr:hover{background:#f7f9fc}
 .num{font-family:var(--mono);text-align:right;white-space:nowrap}
 .empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px}
 
 .tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;letter-spacing:.02em;text-transform:capitalize}
 .t-unpaid,.t-open{background:#fdf0e6;color:#9a4a13}
 .t-partial{background:#fbf3d9;color:#7d6410}
-.t-paid,.t-settled{background:var(--teal-soft);color:#0c4a44}
+.t-paid,.t-settled{background:#e2f3ea;color:#146c4a}
 .t-void,.t-written_off{background:#eeecea;color:#6d7370}
 .t-overdue{background:#fbe3dc;color:#8a2d12}
 
@@ -103,8 +113,8 @@ tbody tr:hover{background:#faf9f5}
 .age{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:var(--radius);padding:14px}
 .age .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
 .age .v{font-family:var(--mono);font-size:18px;margin-top:6px}
-.age.b1{border-left-color:var(--teal)}
-.age.b2{border-left-color:var(--gold)}
+.age.b1{border-left-color:#1a7f5a}
+.age.b2{border-left-color:var(--gold-deep)}
 .age.b3{border-left-color:#d9873c}
 .age.b4{border-left-color:var(--clay)}
 .age.b5{border-left-color:#7d2410}
@@ -114,9 +124,21 @@ tbody tr:hover{background:#faf9f5}
 .cat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
 .cat .k{font-size:13px;font-weight:600}
 .cat .v{font-family:var(--mono);font-size:19px;margin-top:6px}
-.cat .track{height:4px;background:#efece4;border-radius:2px;margin-top:10px;overflow:hidden}
-.cat .fill{height:100%;background:var(--teal)}
+.cat .track{height:4px;background:#eef2f7;border-radius:2px;margin-top:10px;overflow:hidden}
+.cat .fill{height:100%;background:var(--navy)}
 .cat.ops .fill{background:var(--clay)}
+
+/* ---------- Documents ---------- */
+.drop{border:2px dashed var(--line);border-radius:var(--radius);padding:30px 20px;text-align:center;background:var(--card);margin-bottom:20px}
+.drop.over{border-color:var(--navy);background:var(--navy-soft)}
+.drop p{margin:0 0 4px;font-size:14px}
+.drop .hint{color:var(--muted);font-size:13px}
+.lock{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:#fbe3dc;color:#8a2d12}
+.open-tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:var(--navy-soft);color:var(--navy)}
+.warn{background:#fdf6e3;border:1px solid #e8d9a8;color:#6b5410;padding:12px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:18px}
+.warn strong{display:block;margin-bottom:3px}
+.progress{height:3px;background:#eef2f7;border-radius:2px;overflow:hidden;margin-top:12px}
+.progress div{height:100%;background:var(--navy);transition:width .2s}
 
 /* ---------- Modal ---------- */
 .veil{position:fixed;inset:0;background:rgba(18,33,31,.45);display:grid;place-items:center;padding:20px;z-index:50}
@@ -144,7 +166,15 @@ tbody tr:hover{background:#faf9f5}
 <!-- ================= LOGIN ================= -->
 <section id="login">
   <div class="login-card">
-    <h1 class="brand">Discover Group<small>Finance Portal</small></h1>
+    <h1 class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5 3h6.6c5 0 8.4 3.6 8.4 9s-3.4 9-8.4 9H5V3z" fill="#e8b94a"/>
+          <path d="M9.6 7.4h2.2c2.5 0 4 1.8 4 4.6s-1.5 4.6-4 4.6H9.6V7.4z" fill="#12234a"/>
+        </svg>
+      </span>
+      <span class="txt">Discover Group<small>Finance Portal</small></span>
+    </h1>
     <p>Sign in with your company account. Access is granted by a finance administrator.</p>
     <div id="loginMsg"></div>
     <div class="field">
@@ -162,7 +192,15 @@ tbody tr:hover{background:#faf9f5}
 <!-- ================= APP ================= -->
 <div class="shell hidden" id="app">
   <aside class="side">
-    <h1 class="brand">Discover Group<small>Finance</small></h1>
+    <h1 class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M5 3h6.6c5 0 8.4 3.6 8.4 9s-3.4 9-8.4 9H5V3z" fill="#12234a"/>
+          <path d="M9.6 7.4h2.2c2.5 0 4 1.8 4 4.6s-1.5 4.6-4 4.6H9.6V7.4z" fill="#fff"/>
+        </svg>
+      </span>
+      <span class="txt">Discover Group<small>Finance Command Center</small></span>
+    </h1>
     <nav>
       <div class="nav-group">Overview</div>
       <button data-view="dashboard" class="on">Dashboard</button>
@@ -171,6 +209,8 @@ tbody tr:hover{background:#faf9f5}
       <button data-view="operational">Operational expense</button>
       <div class="nav-group">Receivables</div>
       <button data-view="receivables">Client invoices</button>
+      <div class="nav-group">Booking dept</div>
+      <button data-view="documents">Documents</button>
       <div class="nav-group">Reports</div>
       <button data-view="aging">Aging report</button>
       <button data-view="margin">Tour margin</button>

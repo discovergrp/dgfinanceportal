@@ -282,3 +282,54 @@ revoke execute on function public.is_staff()        from anon, authenticated, pu
 revoke execute on function public.is_manager()      from anon, authenticated, public;
 revoke execute on function public.apply_payment()   from anon, authenticated, public;
 revoke execute on function public.handle_new_user() from anon, authenticated, public;
+
+-- ============================================================
+-- Booking department document library
+-- ============================================================
+create table documents (
+  id            uuid primary key default gen_random_uuid(),
+  title         text not null,
+  category      text not null,
+  sensitivity   text not null default 'internal',  -- 'internal' | 'restricted'
+  tour_id       uuid references tours(id),
+  period        text,
+  notes         text,
+  storage_path  text not null unique,
+  file_name     text not null,
+  mime_type     text,
+  size_bytes    bigint,
+  uploaded_by   uuid references profiles(id) default auth.uid(),
+  created_at    timestamptz not null default now()
+);
+
+alter table documents enable row level security;
+
+create policy documents_read_internal on documents for select to authenticated
+  using (sensitivity = 'internal' and private.auth_role() is not null);
+create policy documents_read_restricted on documents for select to authenticated
+  using (sensitivity = 'restricted' and private.is_manager());
+create policy documents_insert on documents for insert to authenticated
+  with check (private.is_manager());
+create policy documents_update on documents for update to authenticated
+  using (private.is_manager()) with check (private.is_manager());
+create policy documents_delete on documents for delete to authenticated
+  using (private.is_manager());
+
+-- Private storage bucket, 50 MB cap.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('booking-docs', 'booking-docs', false, 52428800)
+on conflict (id) do nothing;
+
+-- Path prefix mirrors sensitivity so the file is protected, not just its row.
+create policy booking_docs_read_internal on storage.objects for select to authenticated
+  using (bucket_id = 'booking-docs' and (storage.foldername(name))[1] = 'internal'
+         and private.auth_role() is not null);
+create policy booking_docs_read_restricted on storage.objects for select to authenticated
+  using (bucket_id = 'booking-docs' and (storage.foldername(name))[1] = 'restricted'
+         and private.is_manager());
+create policy booking_docs_insert on storage.objects for insert to authenticated
+  with check (bucket_id = 'booking-docs'
+              and (storage.foldername(name))[1] in ('internal','restricted')
+              and private.is_manager());
+create policy booking_docs_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'booking-docs' and private.is_manager());

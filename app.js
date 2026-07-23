@@ -115,7 +115,7 @@ document.querySelectorAll('nav button').forEach(b =>
 function go(view) {
   const host = $('#view');
   host.innerHTML = '<p class="sub">Loading…</p>';
-  ({ dashboard, bookings, operational, receivables, aging, margin, ledger })[view](host);
+  ({ dashboard, bookings, operational, receivables, documents, aging, margin, ledger })[view](host);
 }
 
 function head(title, sub) {
@@ -306,6 +306,235 @@ async function receivables(host) {
   fStatus.addEventListener('change', draw);
   fSearch.addEventListener('input', draw);
   draw();
+}
+
+/* ---------- booking department documents ---------- */
+
+const DOC_CATS = {
+  manifest: 'Passenger manifest',
+  hotel_rates: 'Hotel rates / masterlist',
+  budget: 'Budget sheet',
+  invoice: 'Supplier invoice',
+  airline: 'Airline booking',
+  transport: 'Transport / transfers',
+  tracker: 'Tracker',
+  other: 'Other'
+};
+
+// Manifests carry passport numbers and dates of birth. They are always
+// filed as restricted so only managers and admins can open them.
+const alwaysRestricted = c => c === 'manifest';
+
+const canUpload = () => ['manager', 'admin'].includes(me?.role);
+
+async function documents(host) {
+  const { data, error } = await sb.from('documents')
+    .select('*').order('created_at', { ascending: false });
+  const rows = data || [];
+
+  host.innerHTML = '';
+  host.append(...head('Booking department',
+    'Shared files from the booking team — rate sheets, budgets, invoices and manifests.'));
+
+  if (error) {
+    host.append(el('div', { class: 'msg msg-err' },
+      'Could not load documents: ' + error.message));
+    return;
+  }
+
+  host.append(el('div', { class: 'warn' },
+    el('strong', {}, 'Passenger manifests are restricted'),
+    'Files tagged as manifests contain passport numbers and dates of birth. ' +
+    'They are visible only to managers and admins, and are stored in a private ' +
+    'bucket that never serves public links.'));
+
+  if (canUpload()) host.append(dropzone());
+
+  const bar = el('div', { class: 'bar' });
+  const fCat = el('select', {}, el('option', { value: '' }, 'All categories'),
+    ...Object.entries(DOC_CATS).map(([k, v]) => el('option', { value: k }, v)));
+  const fSearch = el('input', { type: 'search', placeholder: 'Search title, period, notes' });
+  bar.append(
+    el('div', { class: 'field' }, el('label', {}, 'Category'), fCat),
+    el('div', { class: 'field grow' }, el('label', {}, 'Search'), fSearch));
+  host.append(bar);
+
+  const panel = el('div');
+  host.append(panel);
+
+  const draw = () => {
+    const q = fSearch.value.toLowerCase();
+    const list = rows.filter(r =>
+      (!fCat.value || r.category === fCat.value) &&
+      (!q || [r.title, r.period, r.notes, r.file_name]
+        .some(x => (x || '').toLowerCase().includes(q))));
+
+    panel.innerHTML = '';
+    panel.append(el('p', { class: 'sub' }, `${list.length} documents`));
+    panel.append(table(
+      ['Title', 'Category', 'Period', 'Access', 'Size', 'Added', ''],
+      list.map(r => [
+        r.title,
+        DOC_CATS[r.category] || r.category,
+        r.period || '—',
+        r.sensitivity === 'restricted'
+          ? el('span', { class: 'lock' }, '🔒 Restricted')
+          : el('span', { class: 'open-tag' }, 'Internal'),
+        r.size_bytes ? (r.size_bytes / 1024 / 1024).toFixed(2) + ' MB' : '—',
+        dt(r.created_at),
+        el('span', {},
+          el('button', { class: 'btn btn-ghost', onclick: () => openDoc(r) }, 'Open'),
+          canUpload()
+            ? el('button', {
+                class: 'btn btn-ghost',
+                style: 'margin-left:6px',
+                onclick: () => removeDoc(r)
+              }, 'Delete')
+            : '')
+      ]),
+      canUpload()
+        ? 'No documents yet. Drop files above to get started.'
+        : 'No documents you have access to.'));
+  };
+  fCat.addEventListener('change', draw);
+  fSearch.addEventListener('input', draw);
+  draw();
+}
+
+function dropzone() {
+  const zone = el('div', { class: 'drop' },
+    el('p', {}, 'Drop files here, or click to choose'),
+    el('div', { class: 'hint' }, 'Spreadsheets, PDFs and images up to 50 MB'));
+
+  const input = el('input', {
+    type: 'file', multiple: 'true', style: 'display:none'
+  });
+  zone.append(input);
+
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', e => {
+    e.preventDefault(); zone.classList.add('over');
+  });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('over');
+    if (e.dataTransfer.files.length) uploadForm([...e.dataTransfer.files]);
+  });
+  input.addEventListener('change', () => {
+    if (input.files.length) uploadForm([...input.files]);
+  });
+  return zone;
+}
+
+// Guess a category from the filename so the form arrives pre-filled.
+function guessCategory(name) {
+  const n = name.toLowerCase();
+  if (n.includes('room_arrangement') || n.includes('room arrangement')
+      || n.includes('manifest') || n.includes('pax')) return 'manifest';
+  if (n.includes('hotel')) return 'hotel_rates';
+  if (n.includes('budget')) return 'budget';
+  if (n.includes('tracker')) return 'tracker';
+  if (n.includes('invoice') || n.includes('billing')) return 'invoice';
+  if (n.includes('air') || n.includes('flight')) return 'airline';
+  if (n.includes('bus') || n.includes('transfer') || n.includes('coach')) return 'transport';
+  return 'other';
+}
+
+function uploadForm(files) {
+  const first = files[0];
+  const guessed = guessCategory(first.name);
+
+  const title = el('input', {
+    type: 'text',
+    value: files.length === 1 ? first.name.replace(/\.[^.]+$/, '') : `${files.length} files`
+  });
+  const cat = el('select', {},
+    ...Object.entries(DOC_CATS).map(([k, v]) =>
+      el('option', { value: k, ...(k === guessed ? { selected: 'selected' } : {}) }, v)));
+  const tour = el('select', {}, el('option', { value: '' }, 'Not tied to a tour'),
+    ...cache.tours.map(t => el('option', { value: t.id }, `${t.code} — ${t.title}`)));
+  const period = el('input', { type: 'text', placeholder: 'e.g. Nov 2025, Route N Deluxe' });
+  const notes = el('textarea', { rows: '2', placeholder: 'Anything worth noting' });
+
+  const sensNote = el('div', { class: 'warn' });
+  const refreshSens = () => {
+    if (alwaysRestricted(cat.value)) {
+      sensNote.innerHTML = '';
+      sensNote.append(
+        el('strong', {}, 'This will be filed as restricted'),
+        'Manifests hold passport numbers and dates of birth, so only managers ' +
+        'and admins will be able to open it.');
+      sensNote.style.display = '';
+    } else {
+      sensNote.style.display = 'none';
+    }
+  };
+  cat.addEventListener('change', refreshSens);
+  refreshSens();
+
+  const bar = el('div', { class: 'progress', style: 'display:none' }, el('div', { style: 'width:0%' }));
+
+  const body = el('div', {},
+    el('p', { class: 'sub' },
+      files.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join(', ')),
+    field('Title', title),
+    el('div', { class: 'grid2' }, field('Category', cat), field('Period', period)),
+    field('Tour', tour),
+    field('Notes', notes),
+    sensNote,
+    bar);
+
+  modal('Upload to booking department', body, async () => {
+    const sensitivity = alwaysRestricted(cat.value) ? 'restricted' : 'internal';
+    bar.style.display = '';
+    let done = 0;
+
+    for (const f of files) {
+      const safe = f.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${sensitivity}/${Date.now()}_${safe}`;
+
+      const up = await sb.storage.from('booking-docs')
+        .upload(path, f, { contentType: f.type || 'application/octet-stream' });
+      if (up.error) return 'Upload failed for ' + f.name + ': ' + up.error.message;
+
+      const ins = await sb.from('documents').insert({
+        title: files.length === 1 ? title.value : `${title.value} — ${f.name}`,
+        category: cat.value,
+        sensitivity,
+        tour_id: tour.value || null,
+        period: period.value || null,
+        notes: notes.value || null,
+        storage_path: path,
+        file_name: f.name,
+        mime_type: f.type || null,
+        size_bytes: f.size
+      });
+      if (ins.error) {
+        await sb.storage.from('booking-docs').remove([path]);
+        return 'Could not save ' + f.name + ': ' + ins.error.message;
+      }
+      done++;
+      bar.firstChild.style.width = (done / files.length * 100) + '%';
+    }
+    return null;
+  });
+}
+
+async function openDoc(r) {
+  // Signed URL, valid for 60 seconds. Nothing in this bucket is public.
+  const { data, error } = await sb.storage.from('booking-docs')
+    .createSignedUrl(r.storage_path, 60);
+  if (error) return alert('Could not open this file: ' + error.message);
+  window.open(data.signedUrl, '_blank');
+}
+
+async function removeDoc(r) {
+  if (!confirm(`Delete "${r.title}"? This cannot be undone.`)) return;
+  await sb.storage.from('booking-docs').remove([r.storage_path]);
+  const { error } = await sb.from('documents').delete().eq('id', r.id);
+  if (error) return alert('Could not delete: ' + error.message);
+  go('documents');
 }
 
 /* ---------- reports ---------- */
