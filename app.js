@@ -261,55 +261,66 @@ async function dashboard(host) {
   };
   DEPTS.forEach(d => hub.append(cardOf(d)));
 
-  // Live counts
-  const [bk, pay, rec, po, pmt] = await Promise.all([
-    sb.from('bookings').select('vendor_id,status,service_date'),
-    sb.from('v_payables_aging').select('kind,category,status,balance'),
-    sb.from('v_receivables_aging').select('invoice_type,status,balance'),
-    sb.from('purchase_orders').select('status'),
-    sb.from('payments').select('direction')
+  // Live counts, aggregated in the database so the 1,000-row cap can't
+  // silently truncate a total.
+  const [dp, dr, dc, bk] = await Promise.all([
+    sb.from('v_dashboard_payables').select('*'),
+    sb.from('v_dashboard_receivables').select('*'),
+    sb.from('v_dashboard_counts').select('*').single(),
+    sb.from('bookings').select('vendor_id,status,service_date')
   ]);
-  const B = bk.data || [], P = pay.data || [], R = rec.data || [];
-  const live = b => ['enquiry', 'quoted', 'confirmed'].includes(b.status);
-  const vend = cache.vendors.reduce((m, v) => (m[v.id] = v.category, m), {});
+  const P = dp.data || [], R = dr.data || [], C = dc.data || {}, B = bk.data || [];
+
+  const sum = (rows, col) => rows.reduce((s, r) => s + Number(r[col] || 0), 0);
   const set = (view, txt) => {
     DEPTS.forEach(d => { if (d._counts?.[view] && txt) d._counts[view].textContent = txt; });
   };
 
+  // Booking department — live bookings per supplier category
+  const live = b => ['enquiry', 'quoted', 'confirmed'].includes(b.status);
+  const vend = cache.vendors.reduce((m, v) => (m[v.id] = v.category, m), {});
   const byCat = c => B.filter(b => live(b) && vend[b.vendor_id] === c).length;
   set('bk_tour', byCat('tour') || '');
   set('bk_air', byCat('airline') || '');
   set('bk_hotel', byCat('hotel') || '');
   set('bk_land', byCat('transportation') || '');
   set('bk_optional', byCat('admission') || '');
-  set('suppliers', cache.vendors.length);
+  set('suppliers', C.vendors || '');
 
-  const openPay = P.filter(r => r.kind === 'booking' && r.status !== 'paid');
-  set('pay_invoices', openPay.length ? money(openPay.reduce((s, r) => s + Number(r.balance), 0)) : '');
-  set('pay_po', (po.data || []).filter(x => x.status === 'open').length || '');
-  const dueSoon = openPay.length;
-  set('pay_schedule', dueSoon || '');
-  set('pay_made', (pmt.data || []).filter(x => x.direction === 'out').length || '');
+  // Payables
+  const book = P.filter(r => r.kind === 'booking');
+  const owed = sum(book, 'open_balance');
+  set('pay_invoices', owed ? money(owed) : '');
+  set('pay_po', C.open_pos || '');
+  const overdue = sum(book, 'overdue_count');
+  set('pay_schedule', overdue ? `${overdue} overdue` : (sum(book, 'open_count') || ''));
+  set('pay_made', C.payments_out || '');
 
-  const ops = P.filter(r => r.kind === 'operational' && r.status !== 'paid');
+  // Operations
+  const ops = P.filter(r => r.kind === 'operational');
   const opSum = c => {
-    const t = ops.filter(r => r.category === c).reduce((s, r) => s + Number(r.balance), 0);
+    const t = sum(ops.filter(r => r.category === c), 'open_balance');
     return t ? money(t) : '';
   };
-  set('op_all', ops.length ? money(ops.reduce((s, r) => s + Number(r.balance), 0)) : '');
+  const opAll = sum(ops, 'open_balance');
+  set('op_all', opAll ? money(opAll) : '');
   set('op_utilities', opSum('utilities'));
   set('op_rentals', opSum('office_rental'));
   set('op_salaries', opSum('salary'));
   set('op_office', opSum('office'));
   set('op_other', opSum('other'));
 
-  const openRec = t => R.filter(r => r.status !== 'settled'
-    && (r.invoice_type || 'client') === t);
-  const cSum = openRec('client').reduce((s, r) => s + Number(r.balance), 0);
-  const vSum = openRec('visa').reduce((s, r) => s + Number(r.balance), 0);
-  set('ar_client', cSum ? money(cSum) : '');
-  set('ar_visa', vSum ? money(vSum) : '');
-  set('ar_received', (pmt.data || []).filter(x => x.direction === 'in').length || '');
+  // Receivables
+  const rt = t => sum(R.filter(r => r.invoice_type === t), 'open_balance');
+  set('ar_client', rt('client') ? money(rt('client')) : '');
+  set('ar_visa', rt('visa') ? money(rt('visa')) : '');
+  set('ar_received', C.payments_in || '');
+  const totalDue = sum(R, 'open_balance');
+  set('ar_overview', totalDue ? money(totalDue) : '');
+
+  // Reports
+  set('aging', overdue ? `${overdue} overdue` : '');
+  set('margin', C.tours || '');
 }
 
 function stat(k, v, n, cls = '') {
@@ -333,7 +344,7 @@ function table(cols, rows, emptyText) {
 /* ---------- payables ---------- */
 async function payablesView(host, kind, title, sub, cats) {
   const { data } = await sb.from('v_payables_aging').select('*')
-    .eq('kind', kind).order('due_date', { ascending: true });
+    .eq('kind', kind).order('due_date', { ascending: true }).range(0, 4999);
   const rows = data || [];
 
   host.innerHTML = '';
@@ -393,7 +404,7 @@ async function payablesView(host, kind, title, sub, cats) {
 
 /* ---------- receivables ---------- */
 async function receivablesView(host, type, title, sub) {
-  const { data } = await sb.from('v_receivables_aging').select('*').order('due_date');
+  const { data } = await sb.from('v_receivables_aging').select('*').order('due_date').range(0, 4999);
   const rows = (data || []).filter(r => !type || (r.invoice_type || 'client') === type);
 
   host.innerHTML = '';
@@ -1128,8 +1139,8 @@ async function removeDoc(r) {
 /* ---------- reports ---------- */
 async function aging(host) {
   const [p, r] = await Promise.all([
-    sb.from('v_payables_aging').select('*'),
-    sb.from('v_receivables_aging').select('*')
+    sb.from('v_payables_aging').select('*').range(0, 4999),
+    sb.from('v_receivables_aging').select('*').range(0, 4999)
   ]);
   host.innerHTML = '';
   host.append(...head('Aging report', 'How long money has been sitting unpaid, on both sides of the book.'));
@@ -1443,7 +1454,7 @@ async function bookingsOverview(host) {
 
 async function opsView(host, category, title, sub) {
   const { data } = await sb.from('v_payables_aging').select('*')
-    .eq('kind', 'operational').order('due_date');
+    .eq('kind', 'operational').order('due_date').range(0, 4999);
   const rows = (data || []).filter(r => !category || r.category === category);
 
   host.innerHTML = '';
@@ -1563,7 +1574,7 @@ function poForm() {
 
 async function paymentSchedule(host) {
   const { data } = await sb.from('v_payables_aging').select('*')
-    .neq('status', 'paid').order('due_date');
+    .neq('status', 'paid').order('due_date').range(0, 4999);
   const rows = (data || []).filter(r => r.due_date);
 
   host.innerHTML = '';
@@ -1608,7 +1619,7 @@ async function paymentSchedule(host) {
 
 async function paymentsList(host, direction, title, sub) {
   const { data } = await sb.from('payments').select('*')
-    .eq('direction', direction).order('paid_on', { ascending: false });
+    .eq('direction', direction).order('paid_on', { ascending: false }).range(0, 4999);
   const rows = data || [];
 
   host.innerHTML = '';
@@ -1635,7 +1646,7 @@ async function paymentsList(host, direction, title, sub) {
 /* ---------- collections ---------- */
 
 async function collectionsOverview(host) {
-  const { data } = await sb.from('v_receivables_aging').select('*').order('due_date');
+  const { data } = await sb.from('v_receivables_aging').select('*').order('due_date').range(0, 4999);
   const rows = data || [];
 
   host.innerHTML = '';
@@ -1706,13 +1717,13 @@ async function customReports(host) {
     out.innerHTML = '<p class="sub">Running…</p>';
     let cols, rows;
     if (src.value === 'payables') {
-      const { data } = await sb.from('v_payables_aging').select('*');
+      const { data } = await sb.from('v_payables_aging').select('*').range(0, 9999);
       rows = (data || []).filter(r => (!from.value || r.invoice_date >= from.value)
         && (!to.value || r.invoice_date <= to.value));
       cols = ['vendor_name', 'category', 'invoice_no', 'invoice_date', 'due_date',
         'amount', 'paid_amount', 'balance', 'status'];
     } else if (src.value === 'receivables') {
-      const { data } = await sb.from('v_receivables_aging').select('*');
+      const { data } = await sb.from('v_receivables_aging').select('*').range(0, 9999);
       rows = (data || []).filter(r => (!from.value || r.invoice_date >= from.value)
         && (!to.value || r.invoice_date <= to.value));
       cols = ['client_name', 'invoice_type', 'invoice_no', 'invoice_date', 'due_date',
